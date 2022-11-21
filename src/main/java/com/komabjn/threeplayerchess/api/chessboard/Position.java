@@ -5,9 +5,14 @@ package com.komabjn.threeplayerchess.api.chessboard;
  * @author Komabjn
  */
 public class Position {
-    
+
     private PositionLetter positionLetter;
     private PositionNumber positionNumber;
+
+    public Position(PositionLetter positionLetter, PositionNumber positionNumber) {
+        this.positionLetter = positionLetter;
+        this.positionNumber = positionNumber;
+    }
 
     public PositionLetter getPositionLetter() {
         return positionLetter;
@@ -24,5 +29,5 @@ public class Position {
     public void setPositionNumber(PositionNumber positionNumber) {
         this.positionNumber = positionNumber;
     }
-    
+
 }

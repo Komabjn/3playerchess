@@ -1,5 +1,9 @@
 package com.komabjn.threeplayerchess.rendering;
 
+import com.komabjn.threeplayerchess.api.Player;
+import com.komabjn.threeplayerchess.api.chessboard.Position;
+import com.komabjn.threeplayerchess.api.chessboard.PositionLetter;
+import com.komabjn.threeplayerchess.api.chessboard.PositionNumber;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics;
@@ -131,7 +135,7 @@ public class ThreePlayerChessboardRendererImpl extends javax.swing.JPanel {
         );
 
         g2d.setColor(Color.DARK_GRAY);
-        
+
         boolean simplifiedLines = false;
         if (!simplifiedLines) {
             for (int i = 0; i < pointCountLetters; i++) {
@@ -152,7 +156,7 @@ public class ThreePlayerChessboardRendererImpl extends javax.swing.JPanel {
             for (int i = 0; i < bottomPoints.length; i++) {
                 drawLine(g2d, bottomPoints[i][pointCountNumbers - 1], bottomPoints[i][1]);
                 drawLine(g2d, bottomPoints[i][1], bottomPoints[i][0]);
-                
+
                 drawLine(g2d, rightPoints[i][pointCountNumbers - 1], rightPoints[i][1]);
                 drawLine(g2d, rightPoints[i][1], rightPoints[i][0]);
 
@@ -190,6 +194,21 @@ public class ThreePlayerChessboardRendererImpl extends javax.swing.JPanel {
                 fillPolygon(g2d, bottomPoints[i][j], bottomPoints[i][j + 1], bottomPoints[i + 1][j + 1], bottomPoints[i + 1][j]);
                 fillPolygon(g2d, rightPoints[i][j], rightPoints[i][j + 1], rightPoints[i + 1][j + 1], rightPoints[i + 1][j]);
                 fillPolygon(g2d, leftPoints[i][j], leftPoints[i][j + 1], leftPoints[i + 1][j + 1], leftPoints[i + 1][j]);
+            }
+        }
+
+        { //debug
+            g2d.setColor(Color.RED);
+            for (PositionLetter letter : PositionLetter.values()) {
+                for (PositionNumber number : PositionNumber.values()) {
+                    Point trans = translatePosition(new Position(letter, number), Player.PLAYER_1, bottomPoints, leftPoints, rightPoints);
+                    if (trans != null) {
+                        drawPoint(g2d, trans, 4);
+                        String text = "" + letter + " " + (number.ordinal() + 1);
+                        char[] arr = text.toCharArray();
+                        g2d.drawChars(arr, 0, arr.length, trans.x, trans.y);
+                    }
+                }
             }
         }
 
@@ -239,14 +258,14 @@ public class ThreePlayerChessboardRendererImpl extends javax.swing.JPanel {
                 points[i][0] = calculatePoint(points[i + 1][0], middlePoint, distancePerRow);
             }
         }
-        
+
         double bottomFactor = 2 / Math.sqrt(3);
-        
-        points[0][1] = calculatePoint(points[0][0], points[0][pointCountNumbers - 1], (int)(CHESS_BOARD_MARGIN * bottomFactor));
-        points[pointCountLetters - 1][1] = calculatePoint(points[pointCountLetters - 1][0], points[pointCountLetters - 1][pointCountNumbers - 1], (int)(CHESS_BOARD_MARGIN * bottomFactor));
+
+        points[0][1] = calculatePoint(points[0][0], points[0][pointCountNumbers - 1], (int) (CHESS_BOARD_MARGIN * bottomFactor));
+        points[pointCountLetters - 1][1] = calculatePoint(points[pointCountLetters - 1][0], points[pointCountLetters - 1][pointCountNumbers - 1], (int) (CHESS_BOARD_MARGIN * bottomFactor));
         {
             Point middlePoint = calculateMiddlePoint(points[0][1], points[pointCountLetters - 1][1]);
-            Point leftAfterMargin = calculatePoint(points[0][1], middlePoint, (int)(CHESS_BOARD_MARGIN * bottomFactor));
+            Point leftAfterMargin = calculatePoint(points[0][1], middlePoint, (int) (CHESS_BOARD_MARGIN * bottomFactor));
             points[1][1] = leftAfterMargin;
             double distanceToMiddle = calculateDistance(leftAfterMargin, middlePoint);
             int distancePerRow = (int) (distanceToMiddle / (CHESS_BOARD_SIZE / 2));
@@ -254,7 +273,7 @@ public class ThreePlayerChessboardRendererImpl extends javax.swing.JPanel {
                 points[i][1] = calculatePoint(points[i - 1][1], middlePoint, distancePerRow);
             }
             points[middlePointIndex][1] = middlePoint;
-            Point rightAfterMargin = calculatePoint(points[pointCountLetters - 1][1], middlePoint, (int)(CHESS_BOARD_MARGIN * bottomFactor));
+            Point rightAfterMargin = calculatePoint(points[pointCountLetters - 1][1], middlePoint, (int) (CHESS_BOARD_MARGIN * bottomFactor));
             points[pointCountLetters - 2][1] = rightAfterMargin;
             for (int i = pointCountLetters - 3; i > middlePointIndex; i--) {
                 points[i][1] = calculatePoint(points[i + 1][1], middlePoint, distancePerRow);
@@ -274,6 +293,10 @@ public class ThreePlayerChessboardRendererImpl extends javax.swing.JPanel {
 
     private void drawLine(Graphics2D g2d, Point a, Point b) {
         g2d.drawLine(a.x, a.y, b.x, b.y);
+    }
+
+    private void drawPoint(Graphics2D g2d, Point a, int size) {
+        g2d.fillRect(a.x - size / 2, a.y - size / 2, size, size);
     }
 
     private void fillPolygon(Graphics2D g2d, Point... points) {
@@ -314,4 +337,90 @@ public class ThreePlayerChessboardRendererImpl extends javax.swing.JPanel {
         double pointDistance = Math.sqrt(Math.pow(xDelta, 2) + Math.pow(yDelta, 2));
         return pointDistance;
     }
+
+    private Point translatePosition(Position position, Player player, Point[][] pointsBottom, Point[][] pointsLeft, Point[][] pointsRight) {
+        Point p = null;
+        int letterOrdinal = position.getPositionLetter().ordinal();
+        int numberOrdinal = position.getPositionNumber().ordinal();
+        switch (player) {
+            case PLAYER_1: {
+                if (letterOrdinal >= 0 && letterOrdinal < (CHESS_BOARD_SIZE / 2)) {
+                    if (numberOrdinal < CHESS_BOARD_SIZE / 2) {
+                        // bottom points left side
+                        p = calculateMiddleOfPolygon(
+                                pointsBottom[1 + letterOrdinal][1 + numberOrdinal],
+                                pointsBottom[2 + letterOrdinal][1 + numberOrdinal],
+                                pointsBottom[2 + letterOrdinal][2 + numberOrdinal],
+                                pointsBottom[1 + letterOrdinal][2 + numberOrdinal]
+                        );
+                    } else if (numberOrdinal < CHESS_BOARD_SIZE) {
+                        // left points right side reversed numbers reversed letters
+                        p = calculateMiddleOfPolygon(
+                                pointsLeft[CHESS_BOARD_SIZE + 1 - letterOrdinal][1 + (CHESS_BOARD_SIZE) - numberOrdinal],
+                                pointsLeft[CHESS_BOARD_SIZE - letterOrdinal][1 + (CHESS_BOARD_SIZE) - numberOrdinal],
+                                pointsLeft[CHESS_BOARD_SIZE - letterOrdinal][(CHESS_BOARD_SIZE) - numberOrdinal],
+                                pointsLeft[CHESS_BOARD_SIZE + 1 - letterOrdinal][(CHESS_BOARD_SIZE) - numberOrdinal]
+                        );
+                    }
+                } else if (letterOrdinal >= (CHESS_BOARD_SIZE / 2) && letterOrdinal < CHESS_BOARD_SIZE) {
+                    if (numberOrdinal < CHESS_BOARD_SIZE / 2) {
+                        // bottom points right side
+                        p = calculateMiddleOfPolygon(
+                                pointsBottom[1 + letterOrdinal][1 + numberOrdinal],
+                                pointsBottom[2 + letterOrdinal][1 + numberOrdinal],
+                                pointsBottom[2 + letterOrdinal][2 + numberOrdinal],
+                                pointsBottom[1 + letterOrdinal][2 + numberOrdinal]
+                        );
+                    } else if (numberOrdinal >= CHESS_BOARD_SIZE) {
+                        // right points left side reversed numbers reversed letters
+                        p = calculateMiddleOfPolygon(
+                                pointsRight[CHESS_BOARD_SIZE + 1 - letterOrdinal][1 + (int) (CHESS_BOARD_SIZE * 1.5) - numberOrdinal],
+                                pointsRight[CHESS_BOARD_SIZE - letterOrdinal][1 + (int) (CHESS_BOARD_SIZE * 1.5) - numberOrdinal],
+                                pointsRight[CHESS_BOARD_SIZE - letterOrdinal][(int) (CHESS_BOARD_SIZE * 1.5) - numberOrdinal],
+                                pointsRight[CHESS_BOARD_SIZE + 1 - letterOrdinal][(int) (CHESS_BOARD_SIZE * 1.5) - numberOrdinal]
+                        );
+                    }
+                } else {
+                    if (numberOrdinal >= CHESS_BOARD_SIZE / 2 && numberOrdinal < CHESS_BOARD_SIZE) {
+                        // left points left side reversed numbers reversed letters
+                        p = calculateMiddleOfPolygon(
+                                pointsLeft[(int) (CHESS_BOARD_SIZE * 1.5) + 1 - letterOrdinal][1 + (CHESS_BOARD_SIZE) - numberOrdinal],
+                                pointsLeft[(int) (CHESS_BOARD_SIZE * 1.5) - letterOrdinal][1 + (CHESS_BOARD_SIZE) - numberOrdinal],
+                                pointsLeft[(int) (CHESS_BOARD_SIZE * 1.5) - letterOrdinal][(CHESS_BOARD_SIZE) - numberOrdinal],
+                                pointsLeft[(int) (CHESS_BOARD_SIZE * 1.5) + 1 - letterOrdinal][(CHESS_BOARD_SIZE) - numberOrdinal]
+                        );
+                    } else if (numberOrdinal >= CHESS_BOARD_SIZE) {
+                        //right points right side reversed numbers
+                        p = calculateMiddleOfPolygon(
+                                pointsRight[1 + letterOrdinal - CHESS_BOARD_SIZE / 2][1 + (int) (CHESS_BOARD_SIZE * 1.5) - numberOrdinal],
+                                pointsRight[2 + letterOrdinal - CHESS_BOARD_SIZE / 2][1 + (int) (CHESS_BOARD_SIZE * 1.5) - numberOrdinal],
+                                pointsRight[2 + letterOrdinal - CHESS_BOARD_SIZE / 2][(int) (CHESS_BOARD_SIZE * 1.5) - numberOrdinal],
+                                pointsRight[1 + letterOrdinal - CHESS_BOARD_SIZE / 2][(int) (CHESS_BOARD_SIZE * 1.5) - numberOrdinal]
+                        );
+                    }
+                }
+                break;
+            }
+            case PLAYER_2: {
+
+                break;
+            }
+            case PLAYER_3: {
+
+                break;
+            }
+            default: {
+                return null;
+            }
+        }
+        return p;
+    }
+
+    private Point calculateMiddleOfPolygon(Point... points) {
+        assert points.length == 4;
+        Point m1 = calculateMiddlePoint(points[0], points[2]);
+        Point m2 = calculateMiddlePoint(points[1], points[3]);
+        return calculateMiddlePoint(m1, m2);
+    }
+
 }
