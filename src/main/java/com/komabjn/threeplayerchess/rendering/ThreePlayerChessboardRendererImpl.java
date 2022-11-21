@@ -1,9 +1,12 @@
 package com.komabjn.threeplayerchess.rendering;
 
+import com.komabjn.threeplayerchess.api.ChessFigure;
 import com.komabjn.threeplayerchess.api.Player;
+import com.komabjn.threeplayerchess.api.chessboard.ChessboardState;
 import com.komabjn.threeplayerchess.api.chessboard.Position;
 import com.komabjn.threeplayerchess.api.chessboard.PositionLetter;
 import com.komabjn.threeplayerchess.api.chessboard.PositionNumber;
+import com.komabjn.threeplayerchess.rendering.api.ThreePlayerChessRenderer;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics;
@@ -15,11 +18,14 @@ import java.awt.image.BufferedImage;
  *
  * @author Komabjn
  */
-public class ThreePlayerChessboardRendererImpl extends javax.swing.JPanel {
+public class ThreePlayerChessboardRendererImpl extends javax.swing.JPanel implements ThreePlayerChessRenderer {
 
     private static final int CHESS_BOARD_MARGIN = 50;
 
     private static final int CHESS_BOARD_SIZE = 8;
+
+    private ChessboardState chessboardState;
+    private ChesspiecesGraphicsRepository graphicsRepository = ChesspiecesGraphicsRepository.getInstance();
 
     public ThreePlayerChessboardRendererImpl() {
         initComponents();
@@ -134,7 +140,7 @@ public class ThreePlayerChessboardRendererImpl extends javax.swing.JPanel {
                 leftLowerPoint
         );
 
-        g2d.setColor(Color.DARK_GRAY);
+        g2d.setColor(Color.LIGHT_GRAY);
 
         boolean simplifiedLines = false;
         if (!simplifiedLines) {
@@ -197,18 +203,26 @@ public class ThreePlayerChessboardRendererImpl extends javax.swing.JPanel {
             }
         }
 
-        { //debug
-            g2d.setColor(Color.RED);
-            for (PositionLetter letter : PositionLetter.values()) {
-                for (PositionNumber number : PositionNumber.values()) {
-                    Point trans = translatePosition(new Position(letter, number), Player.PLAYER_1, bottomPoints, leftPoints, rightPoints);
-                    if (trans != null) {
-                        drawPoint(g2d, trans, 4);
-                        String text = "" + letter + " " + (number.ordinal() + 1);
-                        char[] arr = text.toCharArray();
-                        g2d.drawChars(arr, 0, arr.length, trans.x, trans.y);
-                    }
-                }
+//        { //debug
+//            g2d.setColor(Color.RED);
+//            for (PositionLetter letter : PositionLetter.values()) {
+//                for (PositionNumber number : PositionNumber.values()) {
+//                    Point trans = translatePosition(new Position(letter, number), Player.PLAYER_1, bottomPoints, leftPoints, rightPoints);
+//                    if (trans != null) {
+//                        drawPoint(g2d, trans, 4);
+//                        String text = "" + letter + " " + (number.ordinal() + 1);
+//                        char[] arr = text.toCharArray();
+//                        g2d.drawChars(arr, 0, arr.length, trans.x, trans.y);
+//                    }
+//                }
+//            }
+//        }
+        
+        if (chessboardState != null) {
+            for (ChessFigure figure : chessboardState.getFigures()) {
+                BufferedImage img = graphicsRepository.getChessGraphics(figure.getPieceType(), figure.getOwner());
+                Point p = translatePosition(figure.getPosition(), Player.PLAYER_1, bottomPoints, leftPoints, rightPoints);
+                g2d.drawImage(img, null, p.x - (img.getWidth() / 2), p.y- (img.getHeight() / 2));
             }
         }
 
@@ -421,6 +435,12 @@ public class ThreePlayerChessboardRendererImpl extends javax.swing.JPanel {
         Point m1 = calculateMiddlePoint(points[0], points[2]);
         Point m2 = calculateMiddlePoint(points[1], points[3]);
         return calculateMiddlePoint(m1, m2);
+    }
+
+    @Override
+    public void render(ChessboardState chessboardState) {
+        this.chessboardState = chessboardState;
+        repaint();
     }
 
 }

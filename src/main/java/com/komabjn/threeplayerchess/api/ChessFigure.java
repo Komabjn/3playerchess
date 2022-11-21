@@ -8,9 +8,9 @@ import com.komabjn.threeplayerchess.api.chessboard.Position;
  */
 public abstract class ChessFigure {
 
-    private Player owner;
-    private Position position;
-    private ChessPieceType pieceType;
+    protected Player owner;
+    protected Position position;
+    protected ChessPieceType pieceType;
 
     public Player getOwner() {
         return owner;

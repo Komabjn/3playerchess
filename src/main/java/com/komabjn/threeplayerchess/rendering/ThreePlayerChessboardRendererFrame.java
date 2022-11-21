@@ -1,5 +1,7 @@
 package com.komabjn.threeplayerchess.rendering;
 
+import com.komabjn.threeplayerchess.rendering.api.ThreePlayerChessRenderer;
+
 /**
  *
  * @author Komabjn
@@ -36,4 +38,8 @@ public class ThreePlayerChessboardRendererFrame extends javax.swing.JFrame {
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private com.komabjn.threeplayerchess.rendering.ThreePlayerChessboardRendererImpl threePlayerChessboardRendererImpl1;
     // End of variables declaration//GEN-END:variables
+
+    public ThreePlayerChessRenderer getRenderer(){
+        return threePlayerChessboardRendererImpl1;
+    }
 }
