@@ -7,12 +7,17 @@ import com.komabjn.threeplayerchess.api.chessboard.Position;
 import com.komabjn.threeplayerchess.api.chessboard.PositionLetter;
 import com.komabjn.threeplayerchess.api.chessboard.PositionNumber;
 import com.komabjn.threeplayerchess.rendering.api.ThreePlayerChessRenderer;
+import com.komabjn.threeplayerchess.util.PositionsUtil;
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  *
@@ -25,7 +30,7 @@ public class ThreePlayerChessboardRendererImpl extends javax.swing.JPanel implem
     private static final int CHESS_BOARD_SIZE = 8;
 
     private ChessboardState chessboardState;
-    private ChesspiecesGraphicsRepository graphicsRepository = ChesspiecesGraphicsRepository.getInstance();
+    private final ChesspiecesGraphicsRepository graphicsRepository = ChesspiecesGraphicsRepository.getInstance();
 
     public ThreePlayerChessboardRendererImpl() {
         initComponents();
@@ -217,14 +222,42 @@ public class ThreePlayerChessboardRendererImpl extends javax.swing.JPanel implem
 //                }
 //            }
 //        }
-        
+
+        // figures
         if (chessboardState != null) {
             for (ChessFigure figure : chessboardState.getFigures()) {
                 BufferedImage img = graphicsRepository.getChessGraphics(figure.getPieceType(), figure.getOwner());
-                Point p = translatePosition(figure.getPosition(), Player.PLAYER_1, bottomPoints, leftPoints, rightPoints);
-                g2d.drawImage(img, null, p.x - (img.getWidth() / 2), p.y- (img.getHeight() / 2));
+                Point p = translatePosition(figure.getPosition(), Player.PLAYER_1, bottomPoints, leftPoints, rightPoints, TranslateMode.CHESS_FIELD);
+                g2d.drawImage(img, null, p.x - (img.getWidth() / 2), p.y - (img.getHeight() / 2));
             }
         }
+
+        // border letters and numbers
+        g2d.setColor(Color.BLACK);
+        int fontSize = 20;
+        Font font = new Font("TimesRoman", Font.PLAIN, fontSize);
+        g2d.setFont(font);
+        List<Position> allPositions = new ArrayList<>(CHESS_BOARD_SIZE * CHESS_BOARD_SIZE);
+        for (PositionLetter letter : PositionLetter.values()) {
+            for (PositionNumber number : PositionNumber.values()) {
+                allPositions.add(new Position(letter, number));
+            }
+        }
+        List<Position> allValidPositions = allPositions.stream().filter((pos) -> PositionsUtil.isPositionValid(pos)).collect(Collectors.toList());
+        allValidPositions.stream().filter((pos) -> PositionsUtil.isPositionAlongLetterBorder(pos)).forEach((pos) -> {
+            Point p = translatePosition(pos, Player.PLAYER_1, bottomPoints, leftPoints, rightPoints, TranslateMode.LETTER);
+            String text = "" + pos.getPositionLetter();
+            char[] arr = text.toCharArray();
+            int textWidth = g2d.getFontMetrics().charsWidth(arr, 0, arr.length);
+            g2d.drawChars(arr, 0, arr.length, p.x - textWidth / 2, p.y + fontSize / 2);
+        });
+        allValidPositions.stream().filter((pos) -> PositionsUtil.isPositionAlongNumberBorder(pos)).forEach((pos) -> {
+            Point p = translatePosition(pos, Player.PLAYER_1, bottomPoints, leftPoints, rightPoints, TranslateMode.NUMBER);
+            String text = "" + (pos.getPositionNumber().ordinal() + 1);
+            char[] arr = text.toCharArray();
+            int textWidth = g2d.getFontMetrics().charsWidth(arr, 0, arr.length);
+            g2d.drawChars(arr, 0, arr.length, p.x - textWidth / 2, p.y + fontSize / 2);
+        });
 
         g2d.setColor(previousColor);
     }
@@ -352,15 +385,24 @@ public class ThreePlayerChessboardRendererImpl extends javax.swing.JPanel implem
         return pointDistance;
     }
 
-    private Point translatePosition(Position position, Player player, Point[][] pointsBottom, Point[][] pointsLeft, Point[][] pointsRight) {
+    private Point translatePosition(Position position, Player player, Point[][] pointsBottom, Point[][] pointsLeft, Point[][] pointsRight, TranslateMode mode) {
         Point p = null;
         int letterOrdinal = position.getPositionLetter().ordinal();
         int numberOrdinal = position.getPositionNumber().ordinal();
         switch (player) {
             case PLAYER_1: {
-                if (letterOrdinal >= 0 && letterOrdinal < (CHESS_BOARD_SIZE / 2)) {
+                if (letterOrdinal < (CHESS_BOARD_SIZE / 2)) {
                     if (numberOrdinal < CHESS_BOARD_SIZE / 2) {
                         // bottom points left side
+                        switch (mode) {
+                            case LETTER: {
+                                numberOrdinal = -1;
+                                break;
+                            }
+                            case NUMBER: {
+                                letterOrdinal = -1;
+                            }
+                        }
                         p = calculateMiddleOfPolygon(
                                 pointsBottom[1 + letterOrdinal][1 + numberOrdinal],
                                 pointsBottom[2 + letterOrdinal][1 + numberOrdinal],
@@ -369,6 +411,15 @@ public class ThreePlayerChessboardRendererImpl extends javax.swing.JPanel implem
                         );
                     } else if (numberOrdinal < CHESS_BOARD_SIZE) {
                         // left points right side reversed numbers reversed letters
+                        switch (mode) {
+                            case LETTER: {
+                                numberOrdinal = CHESS_BOARD_SIZE;
+                                break;
+                            }
+                            case NUMBER: {
+                                letterOrdinal = -1;
+                            }
+                        }
                         p = calculateMiddleOfPolygon(
                                 pointsLeft[CHESS_BOARD_SIZE + 1 - letterOrdinal][1 + (CHESS_BOARD_SIZE) - numberOrdinal],
                                 pointsLeft[CHESS_BOARD_SIZE - letterOrdinal][1 + (CHESS_BOARD_SIZE) - numberOrdinal],
@@ -379,6 +430,15 @@ public class ThreePlayerChessboardRendererImpl extends javax.swing.JPanel implem
                 } else if (letterOrdinal >= (CHESS_BOARD_SIZE / 2) && letterOrdinal < CHESS_BOARD_SIZE) {
                     if (numberOrdinal < CHESS_BOARD_SIZE / 2) {
                         // bottom points right side
+                        switch (mode) {
+                            case LETTER: {
+                                numberOrdinal = -1;
+                                break;
+                            }
+                            case NUMBER: {
+                                letterOrdinal = CHESS_BOARD_SIZE;
+                            }
+                        }
                         p = calculateMiddleOfPolygon(
                                 pointsBottom[1 + letterOrdinal][1 + numberOrdinal],
                                 pointsBottom[2 + letterOrdinal][1 + numberOrdinal],
@@ -387,6 +447,15 @@ public class ThreePlayerChessboardRendererImpl extends javax.swing.JPanel implem
                         );
                     } else if (numberOrdinal >= CHESS_BOARD_SIZE) {
                         // right points left side reversed numbers reversed letters
+                        switch (mode) {
+                            case LETTER: {
+                                numberOrdinal = (int) (CHESS_BOARD_SIZE * 1.5);
+                                break;
+                            }
+                            case NUMBER: {
+                                letterOrdinal = CHESS_BOARD_SIZE;
+                            }
+                        }
                         p = calculateMiddleOfPolygon(
                                 pointsRight[CHESS_BOARD_SIZE + 1 - letterOrdinal][1 + (int) (CHESS_BOARD_SIZE * 1.5) - numberOrdinal],
                                 pointsRight[CHESS_BOARD_SIZE - letterOrdinal][1 + (int) (CHESS_BOARD_SIZE * 1.5) - numberOrdinal],
@@ -397,6 +466,15 @@ public class ThreePlayerChessboardRendererImpl extends javax.swing.JPanel implem
                 } else {
                     if (numberOrdinal >= CHESS_BOARD_SIZE / 2 && numberOrdinal < CHESS_BOARD_SIZE) {
                         // left points left side reversed numbers reversed letters
+                        switch (mode) {
+                            case LETTER: {
+                                numberOrdinal = CHESS_BOARD_SIZE;
+                                break;
+                            }
+                            case NUMBER: {
+                                letterOrdinal = (int) (CHESS_BOARD_SIZE * 1.5);
+                            }
+                        }
                         p = calculateMiddleOfPolygon(
                                 pointsLeft[(int) (CHESS_BOARD_SIZE * 1.5) + 1 - letterOrdinal][1 + (CHESS_BOARD_SIZE) - numberOrdinal],
                                 pointsLeft[(int) (CHESS_BOARD_SIZE * 1.5) - letterOrdinal][1 + (CHESS_BOARD_SIZE) - numberOrdinal],
@@ -405,6 +483,15 @@ public class ThreePlayerChessboardRendererImpl extends javax.swing.JPanel implem
                         );
                     } else if (numberOrdinal >= CHESS_BOARD_SIZE) {
                         //right points right side reversed numbers
+                        switch (mode) {
+                            case LETTER: {
+                                numberOrdinal = (int) (CHESS_BOARD_SIZE * 1.5);
+                                break;
+                            }
+                            case NUMBER: {
+                                letterOrdinal = (int) (CHESS_BOARD_SIZE * 1.5);
+                            }
+                        }
                         p = calculateMiddleOfPolygon(
                                 pointsRight[1 + letterOrdinal - CHESS_BOARD_SIZE / 2][1 + (int) (CHESS_BOARD_SIZE * 1.5) - numberOrdinal],
                                 pointsRight[2 + letterOrdinal - CHESS_BOARD_SIZE / 2][1 + (int) (CHESS_BOARD_SIZE * 1.5) - numberOrdinal],
@@ -441,6 +528,10 @@ public class ThreePlayerChessboardRendererImpl extends javax.swing.JPanel implem
     public void render(ChessboardState chessboardState) {
         this.chessboardState = chessboardState;
         repaint();
+    }
+
+    private enum TranslateMode {
+        CHESS_FIELD, LETTER, NUMBER;
     }
 
 }
