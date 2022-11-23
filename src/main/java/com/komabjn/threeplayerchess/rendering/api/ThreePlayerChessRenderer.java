@@ -1,5 +1,6 @@
 package com.komabjn.threeplayerchess.rendering.api;
 
+import com.komabjn.threeplayerchess.api.Player;
 import com.komabjn.threeplayerchess.api.chessboard.ChessboardState;
 
 /**
@@ -8,6 +9,11 @@ import com.komabjn.threeplayerchess.api.chessboard.ChessboardState;
  */
 public interface ThreePlayerChessRenderer {
     
-    public void render(ChessboardState chessboardState);
+    /**
+     * 
+     * @param chessboardState current state of chessboard
+     * @param player whose perspective we are rendering
+     */
+    public void render(ChessboardState chessboardState, Player player);
     
 }

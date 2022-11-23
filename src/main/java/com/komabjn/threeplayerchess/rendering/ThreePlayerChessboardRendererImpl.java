@@ -30,10 +30,18 @@ public class ThreePlayerChessboardRendererImpl extends javax.swing.JPanel implem
     private static final int CHESS_BOARD_SIZE = 8;
 
     private ChessboardState chessboardState;
+    private Player player;
     private final ChesspiecesGraphicsRepository graphicsRepository = ChesspiecesGraphicsRepository.getInstance();
 
     public ThreePlayerChessboardRendererImpl() {
         initComponents();
+    }
+
+    @Override
+    public void render(ChessboardState chessboardState, Player player) {
+        this.chessboardState = chessboardState;
+        this.player = player;
+        repaint();
     }
 
     /**
@@ -212,7 +220,7 @@ public class ThreePlayerChessboardRendererImpl extends javax.swing.JPanel implem
 //            g2d.setColor(Color.RED);
 //            for (PositionLetter letter : PositionLetter.values()) {
 //                for (PositionNumber number : PositionNumber.values()) {
-//                    Point trans = translatePosition(new Position(letter, number), Player.PLAYER_1, bottomPoints, leftPoints, rightPoints);
+//                    Point trans = translatePosition(new Position(letter, number), player, bottomPoints, leftPoints, rightPoints, TranslateMode.CHESS_FIELD);
 //                    if (trans != null) {
 //                        drawPoint(g2d, trans, 4);
 //                        String text = "" + letter + " " + (number.ordinal() + 1);
@@ -222,12 +230,11 @@ public class ThreePlayerChessboardRendererImpl extends javax.swing.JPanel implem
 //                }
 //            }
 //        }
-
         // figures
         if (chessboardState != null) {
             for (ChessFigure figure : chessboardState.getFigures()) {
                 BufferedImage img = graphicsRepository.getChessGraphics(figure.getPieceType(), figure.getOwner());
-                Point p = translatePosition(figure.getPosition(), Player.PLAYER_1, bottomPoints, leftPoints, rightPoints, TranslateMode.CHESS_FIELD);
+                Point p = translatePosition(figure.getPosition(), player, bottomPoints, leftPoints, rightPoints, TranslateMode.CHESS_FIELD);
                 g2d.drawImage(img, null, p.x - (img.getWidth() / 2), p.y - (img.getHeight() / 2));
             }
         }
@@ -245,14 +252,14 @@ public class ThreePlayerChessboardRendererImpl extends javax.swing.JPanel implem
         }
         List<Position> allValidPositions = allPositions.stream().filter((pos) -> PositionsUtil.isPositionValid(pos)).collect(Collectors.toList());
         allValidPositions.stream().filter((pos) -> PositionsUtil.isPositionAlongLetterBorder(pos)).forEach((pos) -> {
-            Point p = translatePosition(pos, Player.PLAYER_1, bottomPoints, leftPoints, rightPoints, TranslateMode.LETTER);
+            Point p = translatePosition(pos, player, bottomPoints, leftPoints, rightPoints, TranslateMode.LETTER);
             String text = "" + pos.getPositionLetter();
             char[] arr = text.toCharArray();
             int textWidth = g2d.getFontMetrics().charsWidth(arr, 0, arr.length);
             g2d.drawChars(arr, 0, arr.length, p.x - textWidth / 2, p.y + fontSize / 2);
         });
         allValidPositions.stream().filter((pos) -> PositionsUtil.isPositionAlongNumberBorder(pos)).forEach((pos) -> {
-            Point p = translatePosition(pos, Player.PLAYER_1, bottomPoints, leftPoints, rightPoints, TranslateMode.NUMBER);
+            Point p = translatePosition(pos, player, bottomPoints, leftPoints, rightPoints, TranslateMode.NUMBER);
             String text = "" + (pos.getPositionNumber().ordinal() + 1);
             char[] arr = text.toCharArray();
             int textWidth = g2d.getFontMetrics().charsWidth(arr, 0, arr.length);
@@ -387,133 +394,135 @@ public class ThreePlayerChessboardRendererImpl extends javax.swing.JPanel implem
 
     private Point translatePosition(Position position, Player player, Point[][] pointsBottom, Point[][] pointsLeft, Point[][] pointsRight, TranslateMode mode) {
         Point p = null;
-        int letterOrdinal = position.getPositionLetter().ordinal();
-        int numberOrdinal = position.getPositionNumber().ordinal();
+        // for next players we "rotate" the checkboard
         switch (player) {
-            case PLAYER_1: {
-                if (letterOrdinal < (CHESS_BOARD_SIZE / 2)) {
-                    if (numberOrdinal < CHESS_BOARD_SIZE / 2) {
-                        // bottom points left side
-                        switch (mode) {
-                            case LETTER: {
-                                numberOrdinal = -1;
-                                break;
-                            }
-                            case NUMBER: {
-                                letterOrdinal = -1;
-                            }
-                        }
-                        p = calculateMiddleOfPolygon(
-                                pointsBottom[1 + letterOrdinal][1 + numberOrdinal],
-                                pointsBottom[2 + letterOrdinal][1 + numberOrdinal],
-                                pointsBottom[2 + letterOrdinal][2 + numberOrdinal],
-                                pointsBottom[1 + letterOrdinal][2 + numberOrdinal]
-                        );
-                    } else if (numberOrdinal < CHESS_BOARD_SIZE) {
-                        // left points right side reversed numbers reversed letters
-                        switch (mode) {
-                            case LETTER: {
-                                numberOrdinal = CHESS_BOARD_SIZE;
-                                break;
-                            }
-                            case NUMBER: {
-                                letterOrdinal = -1;
-                            }
-                        }
-                        p = calculateMiddleOfPolygon(
-                                pointsLeft[CHESS_BOARD_SIZE + 1 - letterOrdinal][1 + (CHESS_BOARD_SIZE) - numberOrdinal],
-                                pointsLeft[CHESS_BOARD_SIZE - letterOrdinal][1 + (CHESS_BOARD_SIZE) - numberOrdinal],
-                                pointsLeft[CHESS_BOARD_SIZE - letterOrdinal][(CHESS_BOARD_SIZE) - numberOrdinal],
-                                pointsLeft[CHESS_BOARD_SIZE + 1 - letterOrdinal][(CHESS_BOARD_SIZE) - numberOrdinal]
-                        );
-                    }
-                } else if (letterOrdinal >= (CHESS_BOARD_SIZE / 2) && letterOrdinal < CHESS_BOARD_SIZE) {
-                    if (numberOrdinal < CHESS_BOARD_SIZE / 2) {
-                        // bottom points right side
-                        switch (mode) {
-                            case LETTER: {
-                                numberOrdinal = -1;
-                                break;
-                            }
-                            case NUMBER: {
-                                letterOrdinal = CHESS_BOARD_SIZE;
-                            }
-                        }
-                        p = calculateMiddleOfPolygon(
-                                pointsBottom[1 + letterOrdinal][1 + numberOrdinal],
-                                pointsBottom[2 + letterOrdinal][1 + numberOrdinal],
-                                pointsBottom[2 + letterOrdinal][2 + numberOrdinal],
-                                pointsBottom[1 + letterOrdinal][2 + numberOrdinal]
-                        );
-                    } else if (numberOrdinal >= CHESS_BOARD_SIZE) {
-                        // right points left side reversed numbers reversed letters
-                        switch (mode) {
-                            case LETTER: {
-                                numberOrdinal = (int) (CHESS_BOARD_SIZE * 1.5);
-                                break;
-                            }
-                            case NUMBER: {
-                                letterOrdinal = CHESS_BOARD_SIZE;
-                            }
-                        }
-                        p = calculateMiddleOfPolygon(
-                                pointsRight[CHESS_BOARD_SIZE + 1 - letterOrdinal][1 + (int) (CHESS_BOARD_SIZE * 1.5) - numberOrdinal],
-                                pointsRight[CHESS_BOARD_SIZE - letterOrdinal][1 + (int) (CHESS_BOARD_SIZE * 1.5) - numberOrdinal],
-                                pointsRight[CHESS_BOARD_SIZE - letterOrdinal][(int) (CHESS_BOARD_SIZE * 1.5) - numberOrdinal],
-                                pointsRight[CHESS_BOARD_SIZE + 1 - letterOrdinal][(int) (CHESS_BOARD_SIZE * 1.5) - numberOrdinal]
-                        );
-                    }
-                } else {
-                    if (numberOrdinal >= CHESS_BOARD_SIZE / 2 && numberOrdinal < CHESS_BOARD_SIZE) {
-                        // left points left side reversed numbers reversed letters
-                        switch (mode) {
-                            case LETTER: {
-                                numberOrdinal = CHESS_BOARD_SIZE;
-                                break;
-                            }
-                            case NUMBER: {
-                                letterOrdinal = (int) (CHESS_BOARD_SIZE * 1.5);
-                            }
-                        }
-                        p = calculateMiddleOfPolygon(
-                                pointsLeft[(int) (CHESS_BOARD_SIZE * 1.5) + 1 - letterOrdinal][1 + (CHESS_BOARD_SIZE) - numberOrdinal],
-                                pointsLeft[(int) (CHESS_BOARD_SIZE * 1.5) - letterOrdinal][1 + (CHESS_BOARD_SIZE) - numberOrdinal],
-                                pointsLeft[(int) (CHESS_BOARD_SIZE * 1.5) - letterOrdinal][(CHESS_BOARD_SIZE) - numberOrdinal],
-                                pointsLeft[(int) (CHESS_BOARD_SIZE * 1.5) + 1 - letterOrdinal][(CHESS_BOARD_SIZE) - numberOrdinal]
-                        );
-                    } else if (numberOrdinal >= CHESS_BOARD_SIZE) {
-                        //right points right side reversed numbers
-                        switch (mode) {
-                            case LETTER: {
-                                numberOrdinal = (int) (CHESS_BOARD_SIZE * 1.5);
-                                break;
-                            }
-                            case NUMBER: {
-                                letterOrdinal = (int) (CHESS_BOARD_SIZE * 1.5);
-                            }
-                        }
-                        p = calculateMiddleOfPolygon(
-                                pointsRight[1 + letterOrdinal - CHESS_BOARD_SIZE / 2][1 + (int) (CHESS_BOARD_SIZE * 1.5) - numberOrdinal],
-                                pointsRight[2 + letterOrdinal - CHESS_BOARD_SIZE / 2][1 + (int) (CHESS_BOARD_SIZE * 1.5) - numberOrdinal],
-                                pointsRight[2 + letterOrdinal - CHESS_BOARD_SIZE / 2][(int) (CHESS_BOARD_SIZE * 1.5) - numberOrdinal],
-                                pointsRight[1 + letterOrdinal - CHESS_BOARD_SIZE / 2][(int) (CHESS_BOARD_SIZE * 1.5) - numberOrdinal]
-                        );
-                    }
-                }
-                break;
-            }
             case PLAYER_2: {
-
+                Point[][] pointsTmp = pointsBottom;
+                pointsBottom = pointsRight;
+                pointsRight = pointsLeft;
+                pointsLeft = pointsTmp;
                 break;
             }
             case PLAYER_3: {
-
+                Point[][] pointsTmp = pointsBottom;
+                pointsBottom = pointsLeft;
+                pointsLeft = pointsRight;
+                pointsRight = pointsTmp;
                 break;
             }
-            default: {
-                return null;
+        }
+        int letterOrdinal = position.getPositionLetter().ordinal();
+        int numberOrdinal = position.getPositionNumber().ordinal();
+        if (letterOrdinal < (CHESS_BOARD_SIZE / 2)) {
+            if (numberOrdinal < CHESS_BOARD_SIZE / 2) {
+                // bottom points left side
+                switch (mode) {
+                    case LETTER: {
+                        numberOrdinal = -1;
+                        break;
+                    }
+                    case NUMBER: {
+                        letterOrdinal = -1;
+                    }
+                }
+                p = calculateMiddleOfPolygon(
+                        pointsBottom[1 + letterOrdinal][1 + numberOrdinal],
+                        pointsBottom[2 + letterOrdinal][1 + numberOrdinal],
+                        pointsBottom[2 + letterOrdinal][2 + numberOrdinal],
+                        pointsBottom[1 + letterOrdinal][2 + numberOrdinal]
+                );
+            } else if (numberOrdinal < CHESS_BOARD_SIZE) {
+                // left points right side reversed numbers reversed letters
+                switch (mode) {
+                    case LETTER: {
+                        numberOrdinal = CHESS_BOARD_SIZE;
+                        break;
+                    }
+                    case NUMBER: {
+                        letterOrdinal = -1;
+                    }
+                }
+                p = calculateMiddleOfPolygon(
+                        pointsLeft[CHESS_BOARD_SIZE + 1 - letterOrdinal][1 + (CHESS_BOARD_SIZE) - numberOrdinal],
+                        pointsLeft[CHESS_BOARD_SIZE - letterOrdinal][1 + (CHESS_BOARD_SIZE) - numberOrdinal],
+                        pointsLeft[CHESS_BOARD_SIZE - letterOrdinal][(CHESS_BOARD_SIZE) - numberOrdinal],
+                        pointsLeft[CHESS_BOARD_SIZE + 1 - letterOrdinal][(CHESS_BOARD_SIZE) - numberOrdinal]
+                );
+            }
+        } else if (letterOrdinal >= (CHESS_BOARD_SIZE / 2) && letterOrdinal < CHESS_BOARD_SIZE) {
+            if (numberOrdinal < CHESS_BOARD_SIZE / 2) {
+                // bottom points right side
+                switch (mode) {
+                    case LETTER: {
+                        numberOrdinal = -1;
+                        break;
+                    }
+                    case NUMBER: {
+                        letterOrdinal = CHESS_BOARD_SIZE;
+                    }
+                }
+                p = calculateMiddleOfPolygon(
+                        pointsBottom[1 + letterOrdinal][1 + numberOrdinal],
+                        pointsBottom[2 + letterOrdinal][1 + numberOrdinal],
+                        pointsBottom[2 + letterOrdinal][2 + numberOrdinal],
+                        pointsBottom[1 + letterOrdinal][2 + numberOrdinal]
+                );
+            } else if (numberOrdinal >= CHESS_BOARD_SIZE) {
+                // right points left side reversed numbers reversed letters
+                switch (mode) {
+                    case LETTER: {
+                        numberOrdinal = (int) (CHESS_BOARD_SIZE * 1.5);
+                        break;
+                    }
+                    case NUMBER: {
+                        letterOrdinal = CHESS_BOARD_SIZE;
+                    }
+                }
+                p = calculateMiddleOfPolygon(
+                        pointsRight[CHESS_BOARD_SIZE + 1 - letterOrdinal][1 + (int) (CHESS_BOARD_SIZE * 1.5) - numberOrdinal],
+                        pointsRight[CHESS_BOARD_SIZE - letterOrdinal][1 + (int) (CHESS_BOARD_SIZE * 1.5) - numberOrdinal],
+                        pointsRight[CHESS_BOARD_SIZE - letterOrdinal][(int) (CHESS_BOARD_SIZE * 1.5) - numberOrdinal],
+                        pointsRight[CHESS_BOARD_SIZE + 1 - letterOrdinal][(int) (CHESS_BOARD_SIZE * 1.5) - numberOrdinal]
+                );
+            }
+        } else {
+            if (numberOrdinal >= CHESS_BOARD_SIZE / 2 && numberOrdinal < CHESS_BOARD_SIZE) {
+                // left points left side reversed numbers reversed letters
+                switch (mode) {
+                    case LETTER: {
+                        numberOrdinal = CHESS_BOARD_SIZE;
+                        break;
+                    }
+                    case NUMBER: {
+                        letterOrdinal = (int) (CHESS_BOARD_SIZE * 1.5);
+                    }
+                }
+                p = calculateMiddleOfPolygon(
+                        pointsLeft[(int) (CHESS_BOARD_SIZE * 1.5) + 1 - letterOrdinal][1 + (CHESS_BOARD_SIZE) - numberOrdinal],
+                        pointsLeft[(int) (CHESS_BOARD_SIZE * 1.5) - letterOrdinal][1 + (CHESS_BOARD_SIZE) - numberOrdinal],
+                        pointsLeft[(int) (CHESS_BOARD_SIZE * 1.5) - letterOrdinal][(CHESS_BOARD_SIZE) - numberOrdinal],
+                        pointsLeft[(int) (CHESS_BOARD_SIZE * 1.5) + 1 - letterOrdinal][(CHESS_BOARD_SIZE) - numberOrdinal]
+                );
+            } else if (numberOrdinal >= CHESS_BOARD_SIZE) {
+                //right points right side reversed numbers
+                switch (mode) {
+                    case LETTER: {
+                        numberOrdinal = (int) (CHESS_BOARD_SIZE * 1.5);
+                        break;
+                    }
+                    case NUMBER: {
+                        letterOrdinal = (int) (CHESS_BOARD_SIZE * 1.5);
+                    }
+                }
+                p = calculateMiddleOfPolygon(
+                        pointsRight[1 + letterOrdinal - CHESS_BOARD_SIZE / 2][1 + (int) (CHESS_BOARD_SIZE * 1.5) - numberOrdinal],
+                        pointsRight[2 + letterOrdinal - CHESS_BOARD_SIZE / 2][1 + (int) (CHESS_BOARD_SIZE * 1.5) - numberOrdinal],
+                        pointsRight[2 + letterOrdinal - CHESS_BOARD_SIZE / 2][(int) (CHESS_BOARD_SIZE * 1.5) - numberOrdinal],
+                        pointsRight[1 + letterOrdinal - CHESS_BOARD_SIZE / 2][(int) (CHESS_BOARD_SIZE * 1.5) - numberOrdinal]
+                );
             }
         }
+
         return p;
     }
 
@@ -522,12 +531,6 @@ public class ThreePlayerChessboardRendererImpl extends javax.swing.JPanel implem
         Point m1 = calculateMiddlePoint(points[0], points[2]);
         Point m2 = calculateMiddlePoint(points[1], points[3]);
         return calculateMiddlePoint(m1, m2);
-    }
-
-    @Override
-    public void render(ChessboardState chessboardState) {
-        this.chessboardState = chessboardState;
-        repaint();
     }
 
     private enum TranslateMode {
