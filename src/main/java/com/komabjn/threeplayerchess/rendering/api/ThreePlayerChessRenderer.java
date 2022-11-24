@@ -16,4 +16,6 @@ public interface ThreePlayerChessRenderer {
      */
     public void render(ChessboardState chessboardState, Player player);
     
+    public void setColorModel(ChessboardColorModel colorModel);
+    
 }

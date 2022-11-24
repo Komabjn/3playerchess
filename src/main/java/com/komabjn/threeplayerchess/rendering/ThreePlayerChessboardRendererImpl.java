@@ -7,6 +7,7 @@ import com.komabjn.threeplayerchess.api.chessboard.Position;
 import com.komabjn.threeplayerchess.api.chessboard.PositionLetter;
 import com.komabjn.threeplayerchess.api.chessboard.PositionNumber;
 import com.komabjn.threeplayerchess.rendering.api.ThreePlayerChessRenderer;
+import com.komabjn.threeplayerchess.rendering.util.ChessboardPoints;
 import com.komabjn.threeplayerchess.util.PositionsUtil;
 import java.awt.Color;
 import java.awt.Dimension;
@@ -16,32 +17,56 @@ import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Collectors;
+import javax.swing.JPanel;
+import javax.swing.SwingUtilities;
+import com.komabjn.threeplayerchess.rendering.api.ChessboardColorModel;
+import com.komabjn.threeplayerchess.util.ColorUtil;
 
 /**
+ * To avoid concurrency problems, all public methods should internally implement
+ * EDT dispatching. This way EDT will be the only thread to have access to all
+ * fields in this class;
  *
  * @author Komabjn
  */
-public class ThreePlayerChessboardRendererImpl extends javax.swing.JPanel implements ThreePlayerChessRenderer {
+public class ThreePlayerChessboardRendererImpl extends JPanel implements ThreePlayerChessRenderer {
 
     private static final int CHESS_BOARD_MARGIN = 50;
-
     private static final int CHESS_BOARD_SIZE = 8;
+
+    private final ChesspiecesGraphicsRepository graphicsRepository = ChesspiecesGraphicsRepository.getInstance();
 
     private ChessboardState chessboardState;
     private Player player;
-    private final ChesspiecesGraphicsRepository graphicsRepository = ChesspiecesGraphicsRepository.getInstance();
+    private ChessboardPoints chessBoardPoints;
+    private ChessboardColorModel colorModel;
 
     public ThreePlayerChessboardRendererImpl() {
         initComponents();
+        // placeholder to avoid NPX in paintComponent untill render method is called for the first time
+        player = Player.PLAYER_1;
+        chessboardState = new ChessboardState(new HashSet<>(), player);
+        colorModel = ColorUtil.getDefaultColorModel();
     }
 
     @Override
     public void render(ChessboardState chessboardState, Player player) {
-        this.chessboardState = chessboardState;
-        this.player = player;
-        repaint();
+        SwingUtilities.invokeLater(() -> {
+            this.chessboardState = chessboardState;
+            this.player = player;
+            repaint();
+        });
+    }
+
+    @Override
+    public void setColorModel(ChessboardColorModel colorModel) {
+        SwingUtilities.invokeLater(() -> {
+            this.colorModel = colorModel;
+            repaint();
+        });
     }
 
     /**
@@ -74,15 +99,15 @@ public class ThreePlayerChessboardRendererImpl extends javax.swing.JPanel implem
         Dimension size = this.getSize();
         drawPanelBorder(g2d, size, Color.CYAN);
 
+        // chessboard context
         int width = 1500;
         double coef = Math.sqrt(3) / 2;
         BufferedImage image = new BufferedImage(width, (int) (width * coef), BufferedImage.TYPE_INT_ARGB);
         Graphics2D g2dchessBoard = image.createGraphics();
 
-        drawChessboard(g2dchessBoard, new Dimension(image.getWidth(), image.getHeight()), Color.BLACK);
+        drawChessboard(g2dchessBoard, new Dimension(image.getWidth(), image.getHeight()));
 
         g2d.drawImage(image, null, 10, 10);
-
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
@@ -94,10 +119,129 @@ public class ThreePlayerChessboardRendererImpl extends javax.swing.JPanel implem
         g2d.setColor(previousColor);
     }
 
-    private void drawChessboard(Graphics2D g2d, Dimension panelDimension, Color color) {
-        Color previousColor = g2d.getColor();
-        g2d.setColor(color);
+    private void drawChessboard(Graphics2D g2d, Dimension panelDimension) {
+        createChessBoardPoints(panelDimension);
 
+        int pointCountLetters = 4 + (CHESS_BOARD_SIZE - 1);
+        int pointCountNumbers = 2 + (CHESS_BOARD_SIZE / 2);
+
+        // fill alternating chessboard fields
+        g2d.setColor(colorModel.getChessboardColorAlternate());
+        for (int i = 1; i < pointCountLetters - 2; i += 2) {
+            for (int j = 1; j < pointCountNumbers - 1; j += 2) {
+                fillPolygon(g2d, chessBoardPoints.getBottomPoints()[i][j], chessBoardPoints.getBottomPoints()[i][j + 1], chessBoardPoints.getBottomPoints()[i + 1][j + 1], chessBoardPoints.getBottomPoints()[i + 1][j]);
+                fillPolygon(g2d, chessBoardPoints.getRightPoints()[i][j], chessBoardPoints.getRightPoints()[i][j + 1], chessBoardPoints.getRightPoints()[i + 1][j + 1], chessBoardPoints.getRightPoints()[i + 1][j]);
+                fillPolygon(g2d, chessBoardPoints.getLeftPoints()[i][j], chessBoardPoints.getLeftPoints()[i][j + 1], chessBoardPoints.getLeftPoints()[i + 1][j + 1], chessBoardPoints.getLeftPoints()[i + 1][j]);
+            }
+        }
+        for (int i = 2; i < pointCountLetters - 2; i += 2) {
+            for (int j = 2; j < pointCountNumbers - 1; j += 2) {
+                fillPolygon(g2d, chessBoardPoints.getBottomPoints()[i][j], chessBoardPoints.getBottomPoints()[i][j + 1], chessBoardPoints.getBottomPoints()[i + 1][j + 1], chessBoardPoints.getBottomPoints()[i + 1][j]);
+                fillPolygon(g2d, chessBoardPoints.getRightPoints()[i][j], chessBoardPoints.getRightPoints()[i][j + 1], chessBoardPoints.getRightPoints()[i + 1][j + 1], chessBoardPoints.getRightPoints()[i + 1][j]);
+                fillPolygon(g2d, chessBoardPoints.getLeftPoints()[i][j], chessBoardPoints.getLeftPoints()[i][j + 1], chessBoardPoints.getLeftPoints()[i + 1][j + 1], chessBoardPoints.getLeftPoints()[i + 1][j]);
+            }
+        }
+
+        //draw fields contours
+        g2d.setColor(colorModel.getContourColor());
+        boolean simplifiedLines = false; // debug option, draw lines across the board rather than between each point 
+        if (!simplifiedLines) {
+            for (int i = 0; i < pointCountLetters; i++) {
+                for (int j = 0; j < pointCountNumbers - 1; j++) {
+                    drawLine(g2d, chessBoardPoints.getBottomPoints()[i][j], chessBoardPoints.getBottomPoints()[i][j + 1]);
+                    drawLine(g2d, chessBoardPoints.getRightPoints()[i][j], chessBoardPoints.getRightPoints()[i][j + 1]);
+                    drawLine(g2d, chessBoardPoints.getLeftPoints()[i][j], chessBoardPoints.getLeftPoints()[i][j + 1]);
+                }
+            }
+            for (int i = 0; i < pointCountNumbers; i++) {
+                for (int j = 0; j < pointCountLetters - 1; j++) {
+                    drawLine(g2d, chessBoardPoints.getBottomPoints()[j][i], chessBoardPoints.getBottomPoints()[j + 1][i]);
+                    drawLine(g2d, chessBoardPoints.getRightPoints()[j][i], chessBoardPoints.getRightPoints()[j + 1][i]);
+                    drawLine(g2d, chessBoardPoints.getLeftPoints()[j][i], chessBoardPoints.getLeftPoints()[j + 1][i]);
+                }
+            }
+        } else {
+            for (int i = 0; i < chessBoardPoints.getBottomPoints().length; i++) {
+                drawLine(g2d, chessBoardPoints.getBottomPoints()[i][pointCountNumbers - 1], chessBoardPoints.getBottomPoints()[i][1]);
+                drawLine(g2d, chessBoardPoints.getBottomPoints()[i][1], chessBoardPoints.getBottomPoints()[i][0]);
+
+                drawLine(g2d, chessBoardPoints.getRightPoints()[i][pointCountNumbers - 1], chessBoardPoints.getRightPoints()[i][1]);
+                drawLine(g2d, chessBoardPoints.getRightPoints()[i][1], chessBoardPoints.getRightPoints()[i][0]);
+
+                drawLine(g2d, chessBoardPoints.getLeftPoints()[i][pointCountNumbers - 1], chessBoardPoints.getLeftPoints()[i][1]);
+                drawLine(g2d, chessBoardPoints.getLeftPoints()[i][1], chessBoardPoints.getLeftPoints()[i][0]);
+            }
+            int middlePointIndex = pointCountLetters / 2;
+            for (int i = 0; i < pointCountNumbers; i++) {
+                drawLine(g2d, chessBoardPoints.getBottomPoints()[0][i], chessBoardPoints.getBottomPoints()[1][i]);
+                drawLine(g2d, chessBoardPoints.getBottomPoints()[1][i], chessBoardPoints.getBottomPoints()[middlePointIndex][i]);
+                drawLine(g2d, chessBoardPoints.getBottomPoints()[middlePointIndex][i], chessBoardPoints.getBottomPoints()[pointCountLetters - 2][i]);
+                drawLine(g2d, chessBoardPoints.getBottomPoints()[pointCountLetters - 2][i], chessBoardPoints.getBottomPoints()[pointCountLetters - 1][i]);
+
+                drawLine(g2d, chessBoardPoints.getRightPoints()[0][i], chessBoardPoints.getRightPoints()[1][i]);
+                drawLine(g2d, chessBoardPoints.getRightPoints()[1][i], chessBoardPoints.getRightPoints()[middlePointIndex][i]);
+                drawLine(g2d, chessBoardPoints.getRightPoints()[middlePointIndex][i], chessBoardPoints.getRightPoints()[pointCountLetters - 2][i]);
+                drawLine(g2d, chessBoardPoints.getRightPoints()[pointCountLetters - 2][i], chessBoardPoints.getRightPoints()[pointCountLetters - 1][i]);
+
+                drawLine(g2d, chessBoardPoints.getLeftPoints()[0][i], chessBoardPoints.getLeftPoints()[1][i]);
+                drawLine(g2d, chessBoardPoints.getLeftPoints()[1][i], chessBoardPoints.getLeftPoints()[middlePointIndex][i]);
+                drawLine(g2d, chessBoardPoints.getLeftPoints()[middlePointIndex][i], chessBoardPoints.getLeftPoints()[pointCountLetters - 2][i]);
+                drawLine(g2d, chessBoardPoints.getLeftPoints()[pointCountLetters - 2][i], chessBoardPoints.getLeftPoints()[pointCountLetters - 1][i]);
+            }
+        }
+
+//        { //debug
+//            g2d.setColor(Color.RED);
+//            for (PositionLetter letter : PositionLetter.values()) {
+//                for (PositionNumber number : PositionNumber.values()) {
+//                    Point trans = translatePosition(new Position(letter, number), player, chessBoardPoints, TranslateMode.CHESS_FIELD);
+//                    if (trans != null) {
+//                        drawPoint(g2d, trans, 4);
+//                        String text = "" + letter + " " + (number.ordinal() + 1);
+//                        char[] arr = text.toCharArray();
+//                        g2d.drawChars(arr, 0, arr.length, trans.x, trans.y);
+//                    }
+//                }
+//            }
+//        }
+        // border letters and numbers
+        g2d.setColor(colorModel.getLabelColor());
+        int fontSize = 20;
+        Font font = new Font("TimesRoman", Font.PLAIN, fontSize);
+        g2d.setFont(font);
+        List<Position> allPositions = new ArrayList<>(CHESS_BOARD_SIZE * CHESS_BOARD_SIZE);
+        for (PositionLetter letter : PositionLetter.values()) {
+            for (PositionNumber number : PositionNumber.values()) {
+                allPositions.add(new Position(letter, number));
+            }
+        }
+        List<Position> allValidPositions = allPositions.stream().filter((pos) -> PositionsUtil.isPositionValid(pos)).collect(Collectors.toList());
+        allValidPositions.stream().filter((pos) -> PositionsUtil.isPositionAlongLetterBorder(pos)).forEach((pos) -> {
+            Point p = translatePosition(pos, player, chessBoardPoints, TranslateMode.LETTER_LABEL);
+            String text = "" + pos.getPositionLetter();
+            char[] arr = text.toCharArray();
+            int textWidth = g2d.getFontMetrics().charsWidth(arr, 0, arr.length);
+            g2d.drawChars(arr, 0, arr.length, p.x - textWidth / 2, p.y + fontSize / 2);
+        });
+        allValidPositions.stream().filter((pos) -> PositionsUtil.isPositionAlongNumberBorder(pos)).forEach((pos) -> {
+            Point p = translatePosition(pos, player, chessBoardPoints, TranslateMode.NUMBER_LABEL);
+            String text = "" + (pos.getPositionNumber().ordinal() + 1);
+            char[] arr = text.toCharArray();
+            int textWidth = g2d.getFontMetrics().charsWidth(arr, 0, arr.length);
+            g2d.drawChars(arr, 0, arr.length, p.x - textWidth / 2, p.y + fontSize / 2);
+        });
+
+        // figures
+        if (chessboardState != null) {
+            for (ChessFigure figure : chessboardState.getFigures()) {
+                BufferedImage img = graphicsRepository.getChessGraphics(figure.getPieceType(), figure.getOwner());
+                Point p = translatePosition(figure.getPosition(), player, chessBoardPoints, TranslateMode.CHESS_FIELD);
+                g2d.drawImage(img, null, p.x - (img.getWidth() / 2), p.y - (img.getHeight() / 2));
+            }
+        }
+    }
+
+    private void createChessBoardPoints(Dimension panelDimension) {
         Point chessBoardMiddlePoint = new Point(panelDimension.width / 2, panelDimension.height / 2);
 
         int halfWallLength = (int) (panelDimension.height / 2 / Math.sqrt(3));
@@ -153,120 +297,7 @@ public class ThreePlayerChessboardRendererImpl extends javax.swing.JPanel implem
                 leftLowerPoint
         );
 
-        g2d.setColor(Color.LIGHT_GRAY);
-
-        boolean simplifiedLines = false;
-        if (!simplifiedLines) {
-            for (int i = 0; i < pointCountLetters; i++) {
-                for (int j = 0; j < pointCountNumbers - 1; j++) {
-                    drawLine(g2d, bottomPoints[i][j], bottomPoints[i][j + 1]);
-                    drawLine(g2d, rightPoints[i][j], rightPoints[i][j + 1]);
-                    drawLine(g2d, leftPoints[i][j], leftPoints[i][j + 1]);
-                }
-            }
-            for (int i = 0; i < pointCountNumbers; i++) {
-                for (int j = 0; j < pointCountLetters - 1; j++) {
-                    drawLine(g2d, bottomPoints[j][i], bottomPoints[j + 1][i]);
-                    drawLine(g2d, rightPoints[j][i], rightPoints[j + 1][i]);
-                    drawLine(g2d, leftPoints[j][i], leftPoints[j + 1][i]);
-                }
-            }
-        } else {
-            for (int i = 0; i < bottomPoints.length; i++) {
-                drawLine(g2d, bottomPoints[i][pointCountNumbers - 1], bottomPoints[i][1]);
-                drawLine(g2d, bottomPoints[i][1], bottomPoints[i][0]);
-
-                drawLine(g2d, rightPoints[i][pointCountNumbers - 1], rightPoints[i][1]);
-                drawLine(g2d, rightPoints[i][1], rightPoints[i][0]);
-
-                drawLine(g2d, leftPoints[i][pointCountNumbers - 1], leftPoints[i][1]);
-                drawLine(g2d, leftPoints[i][1], leftPoints[i][0]);
-            }
-            int middlePointIndex = pointCountLetters / 2;
-            for (int i = 0; i < pointCountNumbers; i++) {
-                drawLine(g2d, bottomPoints[0][i], bottomPoints[1][i]);
-                drawLine(g2d, bottomPoints[1][i], bottomPoints[middlePointIndex][i]);
-                drawLine(g2d, bottomPoints[middlePointIndex][i], bottomPoints[pointCountLetters - 2][i]);
-                drawLine(g2d, bottomPoints[pointCountLetters - 2][i], bottomPoints[pointCountLetters - 1][i]);
-
-                drawLine(g2d, rightPoints[0][i], rightPoints[1][i]);
-                drawLine(g2d, rightPoints[1][i], rightPoints[middlePointIndex][i]);
-                drawLine(g2d, rightPoints[middlePointIndex][i], rightPoints[pointCountLetters - 2][i]);
-                drawLine(g2d, rightPoints[pointCountLetters - 2][i], rightPoints[pointCountLetters - 1][i]);
-
-                drawLine(g2d, leftPoints[0][i], leftPoints[1][i]);
-                drawLine(g2d, leftPoints[1][i], leftPoints[middlePointIndex][i]);
-                drawLine(g2d, leftPoints[middlePointIndex][i], leftPoints[pointCountLetters - 2][i]);
-                drawLine(g2d, leftPoints[pointCountLetters - 2][i], leftPoints[pointCountLetters - 1][i]);
-            }
-        }
-
-        for (int i = 1; i < pointCountLetters - 2; i += 2) {
-            for (int j = 1; j < pointCountNumbers - 1; j += 2) {
-                fillPolygon(g2d, bottomPoints[i][j], bottomPoints[i][j + 1], bottomPoints[i + 1][j + 1], bottomPoints[i + 1][j]);
-                fillPolygon(g2d, rightPoints[i][j], rightPoints[i][j + 1], rightPoints[i + 1][j + 1], rightPoints[i + 1][j]);
-                fillPolygon(g2d, leftPoints[i][j], leftPoints[i][j + 1], leftPoints[i + 1][j + 1], leftPoints[i + 1][j]);
-            }
-        }
-        for (int i = 2; i < pointCountLetters - 2; i += 2) {
-            for (int j = 2; j < pointCountNumbers - 1; j += 2) {
-                fillPolygon(g2d, bottomPoints[i][j], bottomPoints[i][j + 1], bottomPoints[i + 1][j + 1], bottomPoints[i + 1][j]);
-                fillPolygon(g2d, rightPoints[i][j], rightPoints[i][j + 1], rightPoints[i + 1][j + 1], rightPoints[i + 1][j]);
-                fillPolygon(g2d, leftPoints[i][j], leftPoints[i][j + 1], leftPoints[i + 1][j + 1], leftPoints[i + 1][j]);
-            }
-        }
-
-//        { //debug
-//            g2d.setColor(Color.RED);
-//            for (PositionLetter letter : PositionLetter.values()) {
-//                for (PositionNumber number : PositionNumber.values()) {
-//                    Point trans = translatePosition(new Position(letter, number), player, bottomPoints, leftPoints, rightPoints, TranslateMode.CHESS_FIELD);
-//                    if (trans != null) {
-//                        drawPoint(g2d, trans, 4);
-//                        String text = "" + letter + " " + (number.ordinal() + 1);
-//                        char[] arr = text.toCharArray();
-//                        g2d.drawChars(arr, 0, arr.length, trans.x, trans.y);
-//                    }
-//                }
-//            }
-//        }
-        // figures
-        if (chessboardState != null) {
-            for (ChessFigure figure : chessboardState.getFigures()) {
-                BufferedImage img = graphicsRepository.getChessGraphics(figure.getPieceType(), figure.getOwner());
-                Point p = translatePosition(figure.getPosition(), player, bottomPoints, leftPoints, rightPoints, TranslateMode.CHESS_FIELD);
-                g2d.drawImage(img, null, p.x - (img.getWidth() / 2), p.y - (img.getHeight() / 2));
-            }
-        }
-
-        // border letters and numbers
-        g2d.setColor(Color.BLACK);
-        int fontSize = 20;
-        Font font = new Font("TimesRoman", Font.PLAIN, fontSize);
-        g2d.setFont(font);
-        List<Position> allPositions = new ArrayList<>(CHESS_BOARD_SIZE * CHESS_BOARD_SIZE);
-        for (PositionLetter letter : PositionLetter.values()) {
-            for (PositionNumber number : PositionNumber.values()) {
-                allPositions.add(new Position(letter, number));
-            }
-        }
-        List<Position> allValidPositions = allPositions.stream().filter((pos) -> PositionsUtil.isPositionValid(pos)).collect(Collectors.toList());
-        allValidPositions.stream().filter((pos) -> PositionsUtil.isPositionAlongLetterBorder(pos)).forEach((pos) -> {
-            Point p = translatePosition(pos, player, bottomPoints, leftPoints, rightPoints, TranslateMode.LETTER);
-            String text = "" + pos.getPositionLetter();
-            char[] arr = text.toCharArray();
-            int textWidth = g2d.getFontMetrics().charsWidth(arr, 0, arr.length);
-            g2d.drawChars(arr, 0, arr.length, p.x - textWidth / 2, p.y + fontSize / 2);
-        });
-        allValidPositions.stream().filter((pos) -> PositionsUtil.isPositionAlongNumberBorder(pos)).forEach((pos) -> {
-            Point p = translatePosition(pos, player, bottomPoints, leftPoints, rightPoints, TranslateMode.NUMBER);
-            String text = "" + (pos.getPositionNumber().ordinal() + 1);
-            char[] arr = text.toCharArray();
-            int textWidth = g2d.getFontMetrics().charsWidth(arr, 0, arr.length);
-            g2d.drawChars(arr, 0, arr.length, p.x - textWidth / 2, p.y + fontSize / 2);
-        });
-
-        g2d.setColor(previousColor);
+        chessBoardPoints = new ChessboardPoints(player, bottomPoints, rightPoints, leftPoints);
     }
 
     private Point[][] createPointsArray(int pointCountLetters, int pointCountNumbers, Point chessBoardMiddlePoint, Point leftPoint, Point leftUpperPoint, Point rightPoint, Point rightUpperPoint) {
@@ -392,36 +423,25 @@ public class ThreePlayerChessboardRendererImpl extends javax.swing.JPanel implem
         return pointDistance;
     }
 
-    private Point translatePosition(Position position, Player player, Point[][] pointsBottom, Point[][] pointsLeft, Point[][] pointsRight, TranslateMode mode) {
+    private Point translatePosition(Position position, Player player, ChessboardPoints chessBoardPoints, TranslateMode mode) {
         Point p = null;
         // for next players we "rotate" the checkboard
-        switch (player) {
-            case PLAYER_2: {
-                Point[][] pointsTmp = pointsBottom;
-                pointsBottom = pointsRight;
-                pointsRight = pointsLeft;
-                pointsLeft = pointsTmp;
-                break;
-            }
-            case PLAYER_3: {
-                Point[][] pointsTmp = pointsBottom;
-                pointsBottom = pointsLeft;
-                pointsLeft = pointsRight;
-                pointsRight = pointsTmp;
-                break;
-            }
-        }
+
+        Point[][] pointsBottom = chessBoardPoints.getPlayerPoints();
+        Point[][] pointsRight = chessBoardPoints.getRightPlayerPoints();
+        Point[][] pointsLeft = chessBoardPoints.getLeftPlayerPoints();
+
         int letterOrdinal = position.getPositionLetter().ordinal();
         int numberOrdinal = position.getPositionNumber().ordinal();
         if (letterOrdinal < (CHESS_BOARD_SIZE / 2)) {
             if (numberOrdinal < CHESS_BOARD_SIZE / 2) {
                 // bottom points left side
                 switch (mode) {
-                    case LETTER: {
+                    case LETTER_LABEL: {
                         numberOrdinal = -1;
                         break;
                     }
-                    case NUMBER: {
+                    case NUMBER_LABEL: {
                         letterOrdinal = -1;
                     }
                 }
@@ -434,11 +454,11 @@ public class ThreePlayerChessboardRendererImpl extends javax.swing.JPanel implem
             } else if (numberOrdinal < CHESS_BOARD_SIZE) {
                 // left points right side reversed numbers reversed letters
                 switch (mode) {
-                    case LETTER: {
+                    case LETTER_LABEL: {
                         numberOrdinal = CHESS_BOARD_SIZE;
                         break;
                     }
-                    case NUMBER: {
+                    case NUMBER_LABEL: {
                         letterOrdinal = -1;
                     }
                 }
@@ -453,11 +473,11 @@ public class ThreePlayerChessboardRendererImpl extends javax.swing.JPanel implem
             if (numberOrdinal < CHESS_BOARD_SIZE / 2) {
                 // bottom points right side
                 switch (mode) {
-                    case LETTER: {
+                    case LETTER_LABEL: {
                         numberOrdinal = -1;
                         break;
                     }
-                    case NUMBER: {
+                    case NUMBER_LABEL: {
                         letterOrdinal = CHESS_BOARD_SIZE;
                     }
                 }
@@ -470,11 +490,11 @@ public class ThreePlayerChessboardRendererImpl extends javax.swing.JPanel implem
             } else if (numberOrdinal >= CHESS_BOARD_SIZE) {
                 // right points left side reversed numbers reversed letters
                 switch (mode) {
-                    case LETTER: {
+                    case LETTER_LABEL: {
                         numberOrdinal = (int) (CHESS_BOARD_SIZE * 1.5);
                         break;
                     }
-                    case NUMBER: {
+                    case NUMBER_LABEL: {
                         letterOrdinal = CHESS_BOARD_SIZE;
                     }
                 }
@@ -489,11 +509,11 @@ public class ThreePlayerChessboardRendererImpl extends javax.swing.JPanel implem
             if (numberOrdinal >= CHESS_BOARD_SIZE / 2 && numberOrdinal < CHESS_BOARD_SIZE) {
                 // left points left side reversed numbers reversed letters
                 switch (mode) {
-                    case LETTER: {
+                    case LETTER_LABEL: {
                         numberOrdinal = CHESS_BOARD_SIZE;
                         break;
                     }
-                    case NUMBER: {
+                    case NUMBER_LABEL: {
                         letterOrdinal = (int) (CHESS_BOARD_SIZE * 1.5);
                     }
                 }
@@ -506,11 +526,11 @@ public class ThreePlayerChessboardRendererImpl extends javax.swing.JPanel implem
             } else if (numberOrdinal >= CHESS_BOARD_SIZE) {
                 //right points right side reversed numbers
                 switch (mode) {
-                    case LETTER: {
+                    case LETTER_LABEL: {
                         numberOrdinal = (int) (CHESS_BOARD_SIZE * 1.5);
                         break;
                     }
-                    case NUMBER: {
+                    case NUMBER_LABEL: {
                         letterOrdinal = (int) (CHESS_BOARD_SIZE * 1.5);
                     }
                 }
@@ -534,7 +554,7 @@ public class ThreePlayerChessboardRendererImpl extends javax.swing.JPanel implem
     }
 
     private enum TranslateMode {
-        CHESS_FIELD, LETTER, NUMBER;
+        CHESS_FIELD, LETTER_LABEL, NUMBER_LABEL;
     }
 
 }
