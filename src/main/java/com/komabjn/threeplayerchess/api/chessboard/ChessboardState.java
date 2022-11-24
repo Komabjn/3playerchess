@@ -10,8 +10,8 @@ import java.util.Set;
  */
 public class ChessboardState {
     
-    private Set<ChessFigure> figures;
-    private Player nextPlayer;
+    private final Set<ChessFigure> figures;
+    private final Player nextPlayer;
 
     public ChessboardState(Set<ChessFigure> figures, Player nextPlayer) {
         this.figures = figures;
