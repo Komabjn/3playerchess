@@ -23,7 +23,16 @@ import java.util.stream.Collectors;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 import com.komabjn.threeplayerchess.rendering.api.ChessboardColorModel;
+import com.komabjn.threeplayerchess.rendering.api.highlight.Highlight;
+import com.komabjn.threeplayerchess.rendering.api.highlight.HighlightType;
+import com.komabjn.threeplayerchess.rendering.api.highlight.HighlightTypeProvider;
 import com.komabjn.threeplayerchess.util.ColorUtil;
+import com.komabjn.threeplayerchess.util.HighlightUtil;
+import java.awt.BasicStroke;
+import java.awt.Stroke;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * To avoid concurrency problems, all public methods should internally implement
@@ -41,8 +50,11 @@ public class ThreePlayerChessboardRendererImpl extends JPanel implements ThreePl
 
     private ChessboardState chessboardState;
     private Player player;
+    private List<Highlight> highlights;
+
     private ChessboardPoints chessBoardPoints;
     private ChessboardColorModel colorModel;
+    private HighlightTypeProvider highlightTypeProvider;
 
     public ThreePlayerChessboardRendererImpl() {
         initComponents();
@@ -50,13 +62,16 @@ public class ThreePlayerChessboardRendererImpl extends JPanel implements ThreePl
         player = Player.PLAYER_1;
         chessboardState = new ChessboardState(new HashSet<>(), player);
         colorModel = ColorUtil.getDefaultColorModel();
+        highlights = new ArrayList<>();
+        highlightTypeProvider = HighlightUtil.getDefaultHighlightTypeProvider();
     }
 
     @Override
-    public void render(ChessboardState chessboardState, Player player) {
+    public void render(ChessboardState chessboardState, Player player, List<Highlight> highlights) {
         SwingUtilities.invokeLater(() -> {
             this.chessboardState = chessboardState;
             this.player = player;
+            this.highlights = highlights;
             repaint();
         });
     }
@@ -65,6 +80,14 @@ public class ThreePlayerChessboardRendererImpl extends JPanel implements ThreePl
     public void setColorModel(ChessboardColorModel colorModel) {
         SwingUtilities.invokeLater(() -> {
             this.colorModel = colorModel;
+            repaint();
+        });
+    }
+    
+    @Override
+    public void setHighlightTypeProvider(HighlightTypeProvider highlightTypeProvider){
+        SwingUtilities.invokeLater(() -> {
+            this.highlightTypeProvider = highlightTypeProvider;
             repaint();
         });
     }
@@ -125,22 +148,58 @@ public class ThreePlayerChessboardRendererImpl extends JPanel implements ThreePl
         int pointCountLetters = 4 + (CHESS_BOARD_SIZE - 1);
         int pointCountNumbers = 2 + (CHESS_BOARD_SIZE / 2);
 
+        List<Position> allPositions = new ArrayList<>(CHESS_BOARD_SIZE * CHESS_BOARD_SIZE);
+        for (PositionLetter letter : PositionLetter.values()) {
+            for (PositionNumber number : PositionNumber.values()) {
+                allPositions.add(new Position(letter, number));
+            }
+        }
+        List<Position> allValidPositions = allPositions.stream().filter((pos) -> PositionsUtil.isPositionValid(pos)).collect(Collectors.toList());
+
         // fill alternating chessboard fields
-        g2d.setColor(colorModel.getChessboardColorAlternate());
-        for (int i = 1; i < pointCountLetters - 2; i += 2) {
-            for (int j = 1; j < pointCountNumbers - 1; j += 2) {
-                fillPolygon(g2d, chessBoardPoints.getBottomPoints()[i][j], chessBoardPoints.getBottomPoints()[i][j + 1], chessBoardPoints.getBottomPoints()[i + 1][j + 1], chessBoardPoints.getBottomPoints()[i + 1][j]);
-                fillPolygon(g2d, chessBoardPoints.getRightPoints()[i][j], chessBoardPoints.getRightPoints()[i][j + 1], chessBoardPoints.getRightPoints()[i + 1][j + 1], chessBoardPoints.getRightPoints()[i + 1][j]);
-                fillPolygon(g2d, chessBoardPoints.getLeftPoints()[i][j], chessBoardPoints.getLeftPoints()[i][j + 1], chessBoardPoints.getLeftPoints()[i + 1][j + 1], chessBoardPoints.getLeftPoints()[i + 1][j]);
+        for (Position p : allValidPositions) {
+            Point[] ps = getFieldBoundaries(p, chessBoardPoints, TranslateMode.CHESS_FIELD);
+            if (ColorUtil.isAlternateColorField(p)) {
+                g2d.setColor(colorModel.getChessboardColorAlternate());
+            } else {
+                g2d.setColor(colorModel.getChessboardColorMain());
             }
+            fillPolygon(g2d, ps);
         }
-        for (int i = 2; i < pointCountLetters - 2; i += 2) {
-            for (int j = 2; j < pointCountNumbers - 1; j += 2) {
-                fillPolygon(g2d, chessBoardPoints.getBottomPoints()[i][j], chessBoardPoints.getBottomPoints()[i][j + 1], chessBoardPoints.getBottomPoints()[i + 1][j + 1], chessBoardPoints.getBottomPoints()[i + 1][j]);
-                fillPolygon(g2d, chessBoardPoints.getRightPoints()[i][j], chessBoardPoints.getRightPoints()[i][j + 1], chessBoardPoints.getRightPoints()[i + 1][j + 1], chessBoardPoints.getRightPoints()[i + 1][j]);
-                fillPolygon(g2d, chessBoardPoints.getLeftPoints()[i][j], chessBoardPoints.getLeftPoints()[i][j + 1], chessBoardPoints.getLeftPoints()[i + 1][j + 1], chessBoardPoints.getLeftPoints()[i + 1][j]);
+
+        // fill highlightedFields
+        Map<HighlightType, List<Highlight>> highligtsByType = new HashMap<>();
+        Arrays.stream(HighlightType.values()).forEach((h) -> {
+            highligtsByType.put(h, new ArrayList<>());
+        });
+        highlights.forEach((h) -> {
+            highligtsByType.get(highlightTypeProvider.getHighlightType(h.getHighlightReason())).add(h);
+        });
+        highligtsByType.get(HighlightType.DOT).addAll(highligtsByType.get(HighlightType.DOT_AND_BORDER));
+        highligtsByType.get(HighlightType.BORDER).addAll(highligtsByType.get(HighlightType.DOT_AND_BORDER));
+        for (Highlight highlight : highligtsByType.get(HighlightType.FIELD)) {
+            if (ColorUtil.isAlternateColorField(highlight.getHighlightedPosition())) {
+                g2d.setColor(ColorUtil.blend(colorModel.getHighlightColor(highlight.getHighlightReason()), colorModel.getChessboardColorAlternate()));
+            } else {
+                g2d.setColor(colorModel.getHighlightColor(highlight.getHighlightReason()));
             }
+            Point[] ps = getFieldBoundaries(highlight.getHighlightedPosition(), chessBoardPoints, TranslateMode.CHESS_FIELD);
+            fillPolygon(g2d, ps);
         }
+        
+        // border highlights
+        Stroke originalStroke = g2d.getStroke();
+        g2d.setStroke(new BasicStroke(10));
+        for (Highlight highlight : highligtsByType.get(HighlightType.BORDER)) {
+            if (ColorUtil.isAlternateColorField(highlight.getHighlightedPosition())) {
+                g2d.setColor(ColorUtil.blend(colorModel.getHighlightColor(highlight.getHighlightReason()), colorModel.getChessboardColorAlternate()));
+            } else {
+                g2d.setColor(colorModel.getHighlightColor(highlight.getHighlightReason()));
+            }
+            Point[] ps = getFieldBoundaries(highlight.getHighlightedPosition(), chessBoardPoints, TranslateMode.CHESS_FIELD);
+            borderPolygon(g2d, 0, ps);
+        }
+        g2d.setStroke(originalStroke);
 
         //draw fields contours
         g2d.setColor(colorModel.getContourColor());
@@ -209,22 +268,16 @@ public class ThreePlayerChessboardRendererImpl extends JPanel implements ThreePl
         int fontSize = 20;
         Font font = new Font("TimesRoman", Font.PLAIN, fontSize);
         g2d.setFont(font);
-        List<Position> allPositions = new ArrayList<>(CHESS_BOARD_SIZE * CHESS_BOARD_SIZE);
-        for (PositionLetter letter : PositionLetter.values()) {
-            for (PositionNumber number : PositionNumber.values()) {
-                allPositions.add(new Position(letter, number));
-            }
-        }
-        List<Position> allValidPositions = allPositions.stream().filter((pos) -> PositionsUtil.isPositionValid(pos)).collect(Collectors.toList());
+
         allValidPositions.stream().filter((pos) -> PositionsUtil.isPositionAlongLetterBorder(pos)).forEach((pos) -> {
-            Point p = translatePosition(pos, player, chessBoardPoints, TranslateMode.LETTER_LABEL);
+            Point p = translatePosition(pos, chessBoardPoints, TranslateMode.LETTER_LABEL);
             String text = "" + pos.getPositionLetter();
             char[] arr = text.toCharArray();
             int textWidth = g2d.getFontMetrics().charsWidth(arr, 0, arr.length);
             g2d.drawChars(arr, 0, arr.length, p.x - textWidth / 2, p.y + fontSize / 2);
         });
         allValidPositions.stream().filter((pos) -> PositionsUtil.isPositionAlongNumberBorder(pos)).forEach((pos) -> {
-            Point p = translatePosition(pos, player, chessBoardPoints, TranslateMode.NUMBER_LABEL);
+            Point p = translatePosition(pos, chessBoardPoints, TranslateMode.NUMBER_LABEL);
             String text = "" + (pos.getPositionNumber().ordinal() + 1);
             char[] arr = text.toCharArray();
             int textWidth = g2d.getFontMetrics().charsWidth(arr, 0, arr.length);
@@ -235,9 +288,20 @@ public class ThreePlayerChessboardRendererImpl extends JPanel implements ThreePl
         if (chessboardState != null) {
             for (ChessFigure figure : chessboardState.getFigures()) {
                 BufferedImage img = graphicsRepository.getChessGraphics(figure.getPieceType(), figure.getOwner());
-                Point p = translatePosition(figure.getPosition(), player, chessBoardPoints, TranslateMode.CHESS_FIELD);
+                Point p = translatePosition(figure.getPosition(), chessBoardPoints, TranslateMode.CHESS_FIELD);
                 g2d.drawImage(img, null, p.x - (img.getWidth() / 2), p.y - (img.getHeight() / 2));
             }
+        }
+        
+        // highlight dot
+        for (Highlight highlight : highligtsByType.get(HighlightType.DOT)) {
+            if (ColorUtil.isAlternateColorField(highlight.getHighlightedPosition())) {
+                g2d.setColor(ColorUtil.transparentize(ColorUtil.blend(colorModel.getHighlightColor(highlight.getHighlightReason()), colorModel.getChessboardColorAlternate())));
+            } else {
+                g2d.setColor(ColorUtil.transparentize(colorModel.getHighlightColor(highlight.getHighlightReason())));
+            }
+            Point ps = translatePosition(highlight.getHighlightedPosition(), chessBoardPoints, TranslateMode.CHESS_FIELD);
+            drawPoint(g2d, ps, 20);
         }
     }
 
@@ -381,7 +445,7 @@ public class ThreePlayerChessboardRendererImpl extends JPanel implements ThreePl
     }
 
     private void drawPoint(Graphics2D g2d, Point a, int size) {
-        g2d.fillRect(a.x - size / 2, a.y - size / 2, size, size);
+        g2d.fillOval(a.x - size / 2, a.y - size / 2, size, size);
     }
 
     private void fillPolygon(Graphics2D g2d, Point... points) {
@@ -392,6 +456,16 @@ public class ThreePlayerChessboardRendererImpl extends JPanel implements ThreePl
             yPoints[i] = points[i].y;
         }
         g2d.fillPolygon(xPoints, yPoints, points.length);
+    }
+    
+    private void borderPolygon(Graphics2D g2d, int borderWidth, Point... points) {
+        int[] xPoints = new int[points.length];
+        int[] yPoints = new int[points.length];
+        for (int i = 0; i < points.length; i++) {
+            xPoints[i] = points[i].x;
+            yPoints[i] = points[i].y;
+        }
+        g2d.drawPolygon(xPoints, yPoints, points.length);
     }
 
     private Point calculateMiddlePoint(Point a, Point b) {
@@ -423,9 +497,12 @@ public class ThreePlayerChessboardRendererImpl extends JPanel implements ThreePl
         return pointDistance;
     }
 
-    private Point translatePosition(Position position, Player player, ChessboardPoints chessBoardPoints, TranslateMode mode) {
-        Point p = null;
-        // for next players we "rotate" the checkboard
+    private Point translatePosition(Position position, ChessboardPoints chessBoardPoints, TranslateMode mode) {
+        return calculateMiddleOfPolygon(getFieldBoundaries(position, chessBoardPoints, mode));
+    }
+
+    private Point[] getFieldBoundaries(Position position, ChessboardPoints chessBoardPoints, TranslateMode mode) {
+        List<Point> p = new ArrayList<>(4);
 
         Point[][] pointsBottom = chessBoardPoints.getPlayerPoints();
         Point[][] pointsRight = chessBoardPoints.getRightPlayerPoints();
@@ -445,12 +522,10 @@ public class ThreePlayerChessboardRendererImpl extends JPanel implements ThreePl
                         letterOrdinal = -1;
                     }
                 }
-                p = calculateMiddleOfPolygon(
-                        pointsBottom[1 + letterOrdinal][1 + numberOrdinal],
-                        pointsBottom[2 + letterOrdinal][1 + numberOrdinal],
-                        pointsBottom[2 + letterOrdinal][2 + numberOrdinal],
-                        pointsBottom[1 + letterOrdinal][2 + numberOrdinal]
-                );
+                p.add(pointsBottom[1 + letterOrdinal][1 + numberOrdinal]);
+                p.add(pointsBottom[2 + letterOrdinal][1 + numberOrdinal]);
+                p.add(pointsBottom[2 + letterOrdinal][2 + numberOrdinal]);
+                p.add(pointsBottom[1 + letterOrdinal][2 + numberOrdinal]);
             } else if (numberOrdinal < CHESS_BOARD_SIZE) {
                 // left points right side reversed numbers reversed letters
                 switch (mode) {
@@ -462,12 +537,10 @@ public class ThreePlayerChessboardRendererImpl extends JPanel implements ThreePl
                         letterOrdinal = -1;
                     }
                 }
-                p = calculateMiddleOfPolygon(
-                        pointsLeft[CHESS_BOARD_SIZE + 1 - letterOrdinal][1 + (CHESS_BOARD_SIZE) - numberOrdinal],
-                        pointsLeft[CHESS_BOARD_SIZE - letterOrdinal][1 + (CHESS_BOARD_SIZE) - numberOrdinal],
-                        pointsLeft[CHESS_BOARD_SIZE - letterOrdinal][(CHESS_BOARD_SIZE) - numberOrdinal],
-                        pointsLeft[CHESS_BOARD_SIZE + 1 - letterOrdinal][(CHESS_BOARD_SIZE) - numberOrdinal]
-                );
+                p.add(pointsLeft[CHESS_BOARD_SIZE + 1 - letterOrdinal][1 + (CHESS_BOARD_SIZE) - numberOrdinal]);
+                p.add(pointsLeft[CHESS_BOARD_SIZE - letterOrdinal][1 + (CHESS_BOARD_SIZE) - numberOrdinal]);
+                p.add(pointsLeft[CHESS_BOARD_SIZE - letterOrdinal][(CHESS_BOARD_SIZE) - numberOrdinal]);
+                p.add(pointsLeft[CHESS_BOARD_SIZE + 1 - letterOrdinal][(CHESS_BOARD_SIZE) - numberOrdinal]);
             }
         } else if (letterOrdinal >= (CHESS_BOARD_SIZE / 2) && letterOrdinal < CHESS_BOARD_SIZE) {
             if (numberOrdinal < CHESS_BOARD_SIZE / 2) {
@@ -481,12 +554,10 @@ public class ThreePlayerChessboardRendererImpl extends JPanel implements ThreePl
                         letterOrdinal = CHESS_BOARD_SIZE;
                     }
                 }
-                p = calculateMiddleOfPolygon(
-                        pointsBottom[1 + letterOrdinal][1 + numberOrdinal],
-                        pointsBottom[2 + letterOrdinal][1 + numberOrdinal],
-                        pointsBottom[2 + letterOrdinal][2 + numberOrdinal],
-                        pointsBottom[1 + letterOrdinal][2 + numberOrdinal]
-                );
+                p.add(pointsBottom[1 + letterOrdinal][1 + numberOrdinal]);
+                p.add(pointsBottom[2 + letterOrdinal][1 + numberOrdinal]);
+                p.add(pointsBottom[2 + letterOrdinal][2 + numberOrdinal]);
+                p.add(pointsBottom[1 + letterOrdinal][2 + numberOrdinal]);
             } else if (numberOrdinal >= CHESS_BOARD_SIZE) {
                 // right points left side reversed numbers reversed letters
                 switch (mode) {
@@ -498,12 +569,10 @@ public class ThreePlayerChessboardRendererImpl extends JPanel implements ThreePl
                         letterOrdinal = CHESS_BOARD_SIZE;
                     }
                 }
-                p = calculateMiddleOfPolygon(
-                        pointsRight[CHESS_BOARD_SIZE + 1 - letterOrdinal][1 + (int) (CHESS_BOARD_SIZE * 1.5) - numberOrdinal],
-                        pointsRight[CHESS_BOARD_SIZE - letterOrdinal][1 + (int) (CHESS_BOARD_SIZE * 1.5) - numberOrdinal],
-                        pointsRight[CHESS_BOARD_SIZE - letterOrdinal][(int) (CHESS_BOARD_SIZE * 1.5) - numberOrdinal],
-                        pointsRight[CHESS_BOARD_SIZE + 1 - letterOrdinal][(int) (CHESS_BOARD_SIZE * 1.5) - numberOrdinal]
-                );
+                p.add(pointsRight[CHESS_BOARD_SIZE + 1 - letterOrdinal][1 + (int) (CHESS_BOARD_SIZE * 1.5) - numberOrdinal]);
+                p.add(pointsRight[CHESS_BOARD_SIZE - letterOrdinal][1 + (int) (CHESS_BOARD_SIZE * 1.5) - numberOrdinal]);
+                p.add(pointsRight[CHESS_BOARD_SIZE - letterOrdinal][(int) (CHESS_BOARD_SIZE * 1.5) - numberOrdinal]);
+                p.add(pointsRight[CHESS_BOARD_SIZE + 1 - letterOrdinal][(int) (CHESS_BOARD_SIZE * 1.5) - numberOrdinal]);
             }
         } else {
             if (numberOrdinal >= CHESS_BOARD_SIZE / 2 && numberOrdinal < CHESS_BOARD_SIZE) {
@@ -517,12 +586,10 @@ public class ThreePlayerChessboardRendererImpl extends JPanel implements ThreePl
                         letterOrdinal = (int) (CHESS_BOARD_SIZE * 1.5);
                     }
                 }
-                p = calculateMiddleOfPolygon(
-                        pointsLeft[(int) (CHESS_BOARD_SIZE * 1.5) + 1 - letterOrdinal][1 + (CHESS_BOARD_SIZE) - numberOrdinal],
-                        pointsLeft[(int) (CHESS_BOARD_SIZE * 1.5) - letterOrdinal][1 + (CHESS_BOARD_SIZE) - numberOrdinal],
-                        pointsLeft[(int) (CHESS_BOARD_SIZE * 1.5) - letterOrdinal][(CHESS_BOARD_SIZE) - numberOrdinal],
-                        pointsLeft[(int) (CHESS_BOARD_SIZE * 1.5) + 1 - letterOrdinal][(CHESS_BOARD_SIZE) - numberOrdinal]
-                );
+                p.add(pointsLeft[(int) (CHESS_BOARD_SIZE * 1.5) + 1 - letterOrdinal][1 + (CHESS_BOARD_SIZE) - numberOrdinal]);
+                p.add(pointsLeft[(int) (CHESS_BOARD_SIZE * 1.5) - letterOrdinal][1 + (CHESS_BOARD_SIZE) - numberOrdinal]);
+                p.add(pointsLeft[(int) (CHESS_BOARD_SIZE * 1.5) - letterOrdinal][(CHESS_BOARD_SIZE) - numberOrdinal]);
+                p.add(pointsLeft[(int) (CHESS_BOARD_SIZE * 1.5) + 1 - letterOrdinal][(CHESS_BOARD_SIZE) - numberOrdinal]);
             } else if (numberOrdinal >= CHESS_BOARD_SIZE) {
                 //right points right side reversed numbers
                 switch (mode) {
@@ -534,16 +601,14 @@ public class ThreePlayerChessboardRendererImpl extends JPanel implements ThreePl
                         letterOrdinal = (int) (CHESS_BOARD_SIZE * 1.5);
                     }
                 }
-                p = calculateMiddleOfPolygon(
-                        pointsRight[1 + letterOrdinal - CHESS_BOARD_SIZE / 2][1 + (int) (CHESS_BOARD_SIZE * 1.5) - numberOrdinal],
-                        pointsRight[2 + letterOrdinal - CHESS_BOARD_SIZE / 2][1 + (int) (CHESS_BOARD_SIZE * 1.5) - numberOrdinal],
-                        pointsRight[2 + letterOrdinal - CHESS_BOARD_SIZE / 2][(int) (CHESS_BOARD_SIZE * 1.5) - numberOrdinal],
-                        pointsRight[1 + letterOrdinal - CHESS_BOARD_SIZE / 2][(int) (CHESS_BOARD_SIZE * 1.5) - numberOrdinal]
-                );
+                p.add(pointsRight[1 + letterOrdinal - CHESS_BOARD_SIZE / 2][1 + (int) (CHESS_BOARD_SIZE * 1.5) - numberOrdinal]);
+                p.add(pointsRight[2 + letterOrdinal - CHESS_BOARD_SIZE / 2][1 + (int) (CHESS_BOARD_SIZE * 1.5) - numberOrdinal]);
+                p.add(pointsRight[2 + letterOrdinal - CHESS_BOARD_SIZE / 2][(int) (CHESS_BOARD_SIZE * 1.5) - numberOrdinal]);
+                p.add(pointsRight[1 + letterOrdinal - CHESS_BOARD_SIZE / 2][(int) (CHESS_BOARD_SIZE * 1.5) - numberOrdinal]);
             }
         }
 
-        return p;
+        return p.toArray(new Point[4]);
     }
 
     private Point calculateMiddleOfPolygon(Point... points) {

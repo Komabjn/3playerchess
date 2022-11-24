@@ -1,5 +1,6 @@
 package com.komabjn.threeplayerchess.rendering.api;
 
+import com.komabjn.threeplayerchess.rendering.api.highlight.HighlightReason;
 import java.awt.Color;
 
 /**
@@ -21,4 +22,6 @@ public interface ChessboardColorModel {
 
     public Color getLabelColor();
 
+    public Color getHighlightColor(HighlightReason highlightType);
+    
 }
