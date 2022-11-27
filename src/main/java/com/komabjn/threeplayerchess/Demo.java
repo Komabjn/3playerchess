@@ -8,6 +8,7 @@ import com.komabjn.threeplayerchess.api.chessboard.Position;
 import com.komabjn.threeplayerchess.rendering.ThreePlayerChessboardRendererFrame;
 import com.komabjn.threeplayerchess.api.rendering.highlight.HighlightReason;
 import com.komabjn.threeplayerchess.api.rendering.highlight.Highlight;
+import com.komabjn.threeplayerchess.util.PositionUtil;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -58,6 +59,9 @@ public class Demo {
                 gameFrame.setVisible(true);
 
                 gameFrame.getRenderer().render(new ChessboardState(figures, Player.PLAYER_1), Player.PLAYER_1, highlights);
+                gameFrame.getUserInputListenerSupport().registerListener((pos) -> {
+                    System.out.println("User clicked on: " + PositionUtil.extractPositionLetter(pos) + PositionUtil.extractPositionNumber(pos));
+                });
             }
             {
                 ThreePlayerChessboardRendererFrame gameFrame = new ThreePlayerChessboardRendererFrame();
@@ -79,7 +83,8 @@ public class Demo {
 
                 gameFrame.getRenderer().render(new ChessboardState(figures, Player.PLAYER_1), Player.PLAYER_3, highlights);
             }
-        });
+        }
+        );
     }
 
     private static class ChessFigureImpl extends ChessPiece {
