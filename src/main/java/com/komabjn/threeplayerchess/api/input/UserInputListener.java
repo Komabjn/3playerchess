@@ -9,5 +9,5 @@ import com.komabjn.threeplayerchess.api.chessboard.Position;
 public interface UserInputListener {
 
     public void positionSelected(Position position);
-    
+
 }

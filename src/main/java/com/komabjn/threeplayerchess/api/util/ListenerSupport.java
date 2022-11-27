@@ -8,7 +8,7 @@ package com.komabjn.threeplayerchess.api.util;
 public interface ListenerSupport<TYPE> {
 
     public void registerListener(TYPE listener);
-    
+
     public void unregisterListener(TYPE listener);
-    
+
 }

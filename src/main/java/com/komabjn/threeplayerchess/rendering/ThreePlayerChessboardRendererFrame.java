@@ -39,11 +39,11 @@ public class ThreePlayerChessboardRendererFrame extends javax.swing.JFrame {
     private com.komabjn.threeplayerchess.rendering.ThreePlayerChessboardRendererImpl threePlayerChessboardRendererImpl;
     // End of variables declaration//GEN-END:variables
 
-    public ThreePlayerChessRenderer getRenderer(){
+    public ThreePlayerChessRenderer getRenderer() {
         return threePlayerChessboardRendererImpl;
     }
-    
-    public UserInputListenerSupport getUserInputListenerSupport(){
+
+    public UserInputListenerSupport getUserInputListenerSupport() {
         return threePlayerChessboardRendererImpl.getUserInputListenerSupport();
     }
 }

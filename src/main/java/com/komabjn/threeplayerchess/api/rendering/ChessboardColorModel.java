@@ -18,5 +18,5 @@ public interface ChessboardColorModel {
     public Color getLabelColor();
 
     public Color getHighlightColor(HighlightReason highlightType);
-    
+
 }

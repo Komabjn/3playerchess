@@ -7,5 +7,5 @@ package com.komabjn.threeplayerchess.api.rendering.highlight;
 public interface HighlightTypeProvider {
 
     public HighlightType getHighlightType(HighlightReason highlightReason);
-    
+
 }
