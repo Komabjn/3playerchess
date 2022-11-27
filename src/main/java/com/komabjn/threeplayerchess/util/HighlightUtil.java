@@ -1,8 +1,8 @@
 package com.komabjn.threeplayerchess.util;
 
-import com.komabjn.threeplayerchess.rendering.api.highlight.HighlightReason;
-import com.komabjn.threeplayerchess.rendering.api.highlight.HighlightType;
-import com.komabjn.threeplayerchess.rendering.api.highlight.HighlightTypeProvider;
+import com.komabjn.threeplayerchess.api.rendering.highlight.HighlightReason;
+import com.komabjn.threeplayerchess.api.rendering.highlight.HighlightType;
+import com.komabjn.threeplayerchess.api.rendering.highlight.HighlightTypeProvider;
 
 /**
  *

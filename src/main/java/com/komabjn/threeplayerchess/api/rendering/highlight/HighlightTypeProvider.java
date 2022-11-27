@@ -1,4 +1,4 @@
-package com.komabjn.threeplayerchess.rendering.api.highlight;
+package com.komabjn.threeplayerchess.api.rendering.highlight;
 
 /**
  *
@@ -7,5 +7,5 @@ package com.komabjn.threeplayerchess.rendering.api.highlight;
 public interface HighlightTypeProvider {
 
     public HighlightType getHighlightType(HighlightReason highlightReason);
-    
+
 }

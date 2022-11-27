@@ -1,8 +1,8 @@
 package com.komabjn.threeplayerchess.util;
 
 import com.komabjn.threeplayerchess.api.chessboard.Position;
-import com.komabjn.threeplayerchess.rendering.api.ChessboardColorModel;
-import com.komabjn.threeplayerchess.rendering.api.highlight.HighlightReason;
+import com.komabjn.threeplayerchess.api.rendering.ChessboardColorModel;
+import com.komabjn.threeplayerchess.api.rendering.highlight.HighlightReason;
 import java.awt.Color;
 
 /**
@@ -14,12 +14,12 @@ public class ColorUtil {
     public static ChessboardColorModel getDefaultColorModel() {
         return new ChessboardColorModel() {
             @Override
-            public Color getChessboardColorMain() {
+            public Color getChessboardMainColor() {
                 return Color.WHITE;
             }
 
             @Override
-            public Color getChessboardColorAlternate() {
+            public Color getChessboardAlternateColor() {
                 return Color.LIGHT_GRAY;
             }
 
@@ -54,12 +54,12 @@ public class ColorUtil {
 
     public static boolean isAlternateColorField(Position position) {
         // only fields in this part dont fit general rule SMH
-        if (position.getPositionLetter().ordinal() >= 8 && position.getPositionNumber().ordinal() >= 8) {
-            return (position.getPositionLetter().ordinal() % 2 == 0 && position.getPositionNumber().ordinal() % 2 == 1)
-                    || (position.getPositionLetter().ordinal() % 2 == 1 && position.getPositionNumber().ordinal() % 2 == 0);
+        if (position.getPositionLetter() >= 8 && position.getPositionNumber() >= 8) {
+            return (position.getPositionLetter() % 2 == 0 && position.getPositionNumber() % 2 == 1)
+                    || (position.getPositionLetter() % 2 == 1 && position.getPositionNumber() % 2 == 0);
         }
-        return (position.getPositionLetter().ordinal() % 2 == 0 && position.getPositionNumber().ordinal() % 2 == 0)
-                || (position.getPositionLetter().ordinal() % 2 == 1 && position.getPositionNumber().ordinal() % 2 == 1);
+        return (position.getPositionLetter() % 2 == 0 && position.getPositionNumber() % 2 == 0)
+                || (position.getPositionLetter() % 2 == 1 && position.getPositionNumber() % 2 == 1);
     }
 
     /**
@@ -82,8 +82,8 @@ public class ColorUtil {
 
         return new Color((int) r, (int) g, (int) b, (int) a);
     }
-    
-    public static Color transparentize(Color c){
+
+    public static Color transparentize(Color c) {
         return new Color(c.getRed(), c.getGreen(), c.getBlue(), c.getAlpha() / 2);
     }
 
