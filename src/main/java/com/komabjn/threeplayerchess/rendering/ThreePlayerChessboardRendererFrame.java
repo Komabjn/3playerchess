@@ -1,6 +1,6 @@
 package com.komabjn.threeplayerchess.rendering;
 
-import com.komabjn.threeplayerchess.rendering.api.ThreePlayerChessRenderer;
+import com.komabjn.threeplayerchess.api.rendering.ThreePlayerChessRenderer;
 
 /**
  *
