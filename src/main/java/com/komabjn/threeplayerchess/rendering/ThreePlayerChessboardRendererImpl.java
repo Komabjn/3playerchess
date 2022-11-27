@@ -26,10 +26,13 @@ import com.komabjn.threeplayerchess.api.rendering.ChessboardColorModel;
 import com.komabjn.threeplayerchess.api.rendering.highlight.Highlight;
 import com.komabjn.threeplayerchess.api.rendering.highlight.HighlightType;
 import com.komabjn.threeplayerchess.api.rendering.highlight.HighlightTypeProvider;
+import com.komabjn.threeplayerchess.rendering.util.PolygonUtil;
 import com.komabjn.threeplayerchess.util.ColorUtil;
 import com.komabjn.threeplayerchess.util.HighlightUtil;
 import java.awt.BasicStroke;
 import java.awt.Stroke;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -57,7 +60,7 @@ public class ThreePlayerChessboardRendererImpl extends JPanel implements ThreePl
     private HighlightTypeProvider highlightTypeProvider;
 
     private UserInputListenerSupportImpl userInputListenerSupport = new UserInputListenerSupportImpl();
-
+    
     public ThreePlayerChessboardRendererImpl() {
         initComponents();
         // placeholder to avoid NPX in paintComponent untill render method is called for the first time
@@ -66,6 +69,21 @@ public class ThreePlayerChessboardRendererImpl extends JPanel implements ThreePl
         colorModel = ColorUtil.getDefaultColorModel();
         highlights = new ArrayList<>();
         highlightTypeProvider = HighlightUtil.getDefaultHighlightTypeProvider();
+        
+        addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                Point p = new Point(e.getX() - 10, e.getY() - 10);
+                repaint();
+                PositionUtil.getAllValidPositionsOnChessboard().stream().forEach((pos) -> {
+                    Point[] points = getFieldBoundaries(pos, chessBoardPoints, TranslateMode.CHESS_FIELD);
+                    if(PolygonUtil.isPointInsidePolygon(p, points)){
+                        userInputListenerSupport.notifyListeners(pos);
+                    }
+                });
+            }
+            
+        });
     }
 
     @Override
