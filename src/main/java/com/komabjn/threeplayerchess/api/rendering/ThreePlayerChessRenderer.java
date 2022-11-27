@@ -1,9 +1,9 @@
-package com.komabjn.threeplayerchess.rendering.api;
+package com.komabjn.threeplayerchess.api.rendering;
 
-import com.komabjn.threeplayerchess.rendering.api.highlight.Highlight;
+import com.komabjn.threeplayerchess.api.rendering.highlight.Highlight;
 import com.komabjn.threeplayerchess.api.Player;
 import com.komabjn.threeplayerchess.api.chessboard.ChessboardState;
-import com.komabjn.threeplayerchess.rendering.api.highlight.HighlightTypeProvider;
+import com.komabjn.threeplayerchess.api.rendering.highlight.HighlightTypeProvider;
 import java.util.List;
 
 /**

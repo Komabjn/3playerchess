@@ -1,8 +1,8 @@
 package com.komabjn.threeplayerchess.util;
 
 import com.komabjn.threeplayerchess.api.chessboard.Position;
-import com.komabjn.threeplayerchess.rendering.api.ChessboardColorModel;
-import com.komabjn.threeplayerchess.rendering.api.highlight.HighlightReason;
+import com.komabjn.threeplayerchess.api.rendering.ChessboardColorModel;
+import com.komabjn.threeplayerchess.api.rendering.highlight.HighlightReason;
 import java.awt.Color;
 
 /**

@@ -1,6 +1,6 @@
-package com.komabjn.threeplayerchess.rendering.api;
+package com.komabjn.threeplayerchess.api.rendering;
 
-import com.komabjn.threeplayerchess.rendering.api.highlight.HighlightReason;
+import com.komabjn.threeplayerchess.api.rendering.highlight.HighlightReason;
 import java.awt.Color;
 
 /**

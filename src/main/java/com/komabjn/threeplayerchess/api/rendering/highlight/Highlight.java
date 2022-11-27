@@ -1,4 +1,4 @@
-package com.komabjn.threeplayerchess.rendering.api.highlight;
+package com.komabjn.threeplayerchess.api.rendering.highlight;
 
 import com.komabjn.threeplayerchess.api.chessboard.Position;
 
