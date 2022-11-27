@@ -9,14 +9,9 @@ import java.awt.Color;
  */
 public interface ChessboardColorModel {
 
-    /**
-     * curently unsupported
-     *
-     * @return
-     */
-    public Color getChessboardColorMain();
+    public Color getChessboardMainColor();
 
-    public Color getChessboardColorAlternate();
+    public Color getChessboardAlternateColor();
 
     public Color getContourColor();
 

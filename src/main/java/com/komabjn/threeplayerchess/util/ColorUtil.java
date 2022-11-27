@@ -14,12 +14,12 @@ public class ColorUtil {
     public static ChessboardColorModel getDefaultColorModel() {
         return new ChessboardColorModel() {
             @Override
-            public Color getChessboardColorMain() {
+            public Color getChessboardMainColor() {
                 return Color.WHITE;
             }
 
             @Override
-            public Color getChessboardColorAlternate() {
+            public Color getChessboardAlternateColor() {
                 return Color.LIGHT_GRAY;
             }
 

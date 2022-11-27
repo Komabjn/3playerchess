@@ -1,6 +1,6 @@
 package com.komabjn.threeplayerchess;
 
-import com.komabjn.threeplayerchess.api.ChessFigure;
+import com.komabjn.threeplayerchess.api.ChessPiece;
 import com.komabjn.threeplayerchess.api.ChessPieceType;
 import com.komabjn.threeplayerchess.api.Player;
 import com.komabjn.threeplayerchess.api.chessboard.ChessboardState;
@@ -25,7 +25,7 @@ public class Demo {
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
-            Set<ChessFigure> figures = new HashSet<>();
+            Set<ChessPiece> figures = new HashSet<>();
             figures.add(new ChessFigureImpl(Player.PLAYER_1, new Position(PositionLetter.E, PositionNumber.NUMBER_1), ChessPieceType.QUEEN));
             figures.add(new ChessFigureImpl(Player.PLAYER_1, new Position(PositionLetter.D, PositionNumber.NUMBER_1), ChessPieceType.KING));
             figures.add(new ChessFigureImpl(Player.PLAYER_2, new Position(PositionLetter.B, PositionNumber.NUMBER_2), ChessPieceType.KNIGHT));
@@ -84,7 +84,7 @@ public class Demo {
         });
     }
 
-    private static class ChessFigureImpl extends ChessFigure {
+    private static class ChessFigureImpl extends ChessPiece {
 
         public ChessFigureImpl(Player owner, Position position, ChessPieceType pieceType) {
             this.owner = owner;

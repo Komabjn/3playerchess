@@ -1,5 +1,6 @@
 package com.komabjn.threeplayerchess.rendering;
 
+import com.komabjn.threeplayerchess.api.input.UserInputListenerSupport;
 import com.komabjn.threeplayerchess.api.rendering.ThreePlayerChessRenderer;
 
 /**
@@ -24,22 +25,25 @@ public class ThreePlayerChessboardRendererFrame extends javax.swing.JFrame {
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
 
-        threePlayerChessboardRendererImpl1 = new com.komabjn.threeplayerchess.rendering.ThreePlayerChessboardRendererImpl();
+        threePlayerChessboardRendererImpl = new com.komabjn.threeplayerchess.rendering.ThreePlayerChessboardRendererImpl();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
         setPreferredSize(new java.awt.Dimension(1600, 1400));
-        getContentPane().setLayout(new java.awt.BorderLayout());
-        getContentPane().add(threePlayerChessboardRendererImpl1, java.awt.BorderLayout.CENTER);
+        getContentPane().add(threePlayerChessboardRendererImpl, java.awt.BorderLayout.CENTER);
 
         pack();
     }// </editor-fold>//GEN-END:initComponents
 
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
-    private com.komabjn.threeplayerchess.rendering.ThreePlayerChessboardRendererImpl threePlayerChessboardRendererImpl1;
+    private com.komabjn.threeplayerchess.rendering.ThreePlayerChessboardRendererImpl threePlayerChessboardRendererImpl;
     // End of variables declaration//GEN-END:variables
 
     public ThreePlayerChessRenderer getRenderer(){
-        return threePlayerChessboardRendererImpl1;
+        return threePlayerChessboardRendererImpl;
+    }
+    
+    public UserInputListenerSupport getUserInputListenerSupport(){
+        return threePlayerChessboardRendererImpl.getUserInputListenerSupport();
     }
 }

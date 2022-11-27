@@ -6,7 +6,7 @@ import com.komabjn.threeplayerchess.api.chessboard.Position;
  *
  * @author Komabjn
  */
-public abstract class ChessFigure {
+public abstract class ChessPiece {
 
     protected Player owner;
     protected Position position;

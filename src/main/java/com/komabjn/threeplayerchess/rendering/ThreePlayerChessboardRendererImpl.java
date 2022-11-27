@@ -1,11 +1,13 @@
 package com.komabjn.threeplayerchess.rendering;
 
-import com.komabjn.threeplayerchess.api.ChessFigure;
+import com.komabjn.threeplayerchess.api.ChessPiece;
 import com.komabjn.threeplayerchess.api.Player;
 import com.komabjn.threeplayerchess.api.chessboard.ChessboardState;
 import com.komabjn.threeplayerchess.api.chessboard.Position;
 import com.komabjn.threeplayerchess.api.chessboard.PositionLetter;
 import com.komabjn.threeplayerchess.api.chessboard.PositionNumber;
+import com.komabjn.threeplayerchess.api.input.UserInputListener;
+import com.komabjn.threeplayerchess.api.input.UserInputListenerSupport;
 import com.komabjn.threeplayerchess.api.rendering.ThreePlayerChessRenderer;
 import com.komabjn.threeplayerchess.rendering.util.ChessboardPoints;
 import com.komabjn.threeplayerchess.util.PositionsUtil;
@@ -33,6 +35,7 @@ import java.awt.Stroke;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * To avoid concurrency problems, all public methods should internally implement
@@ -56,6 +59,8 @@ public class ThreePlayerChessboardRendererImpl extends JPanel implements ThreePl
     private ChessboardColorModel colorModel;
     private HighlightTypeProvider highlightTypeProvider;
 
+    private UserInputListenerSupportImpl userInputListenerSupport = new UserInputListenerSupportImpl();
+    
     public ThreePlayerChessboardRendererImpl() {
         initComponents();
         // placeholder to avoid NPX in paintComponent untill render method is called for the first time
@@ -160,9 +165,9 @@ public class ThreePlayerChessboardRendererImpl extends JPanel implements ThreePl
         for (Position p : allValidPositions) {
             Point[] ps = getFieldBoundaries(p, chessBoardPoints, TranslateMode.CHESS_FIELD);
             if (ColorUtil.isAlternateColorField(p)) {
-                g2d.setColor(colorModel.getChessboardColorAlternate());
+                g2d.setColor(colorModel.getChessboardAlternateColor());
             } else {
-                g2d.setColor(colorModel.getChessboardColorMain());
+                g2d.setColor(colorModel.getChessboardMainColor());
             }
             fillPolygon(g2d, ps);
         }
@@ -179,7 +184,7 @@ public class ThreePlayerChessboardRendererImpl extends JPanel implements ThreePl
         highligtsByType.get(HighlightType.BORDER).addAll(highligtsByType.get(HighlightType.DOT_AND_BORDER));
         for (Highlight highlight : highligtsByType.get(HighlightType.FIELD)) {
             if (ColorUtil.isAlternateColorField(highlight.getHighlightedPosition())) {
-                g2d.setColor(ColorUtil.blend(colorModel.getHighlightColor(highlight.getHighlightReason()), colorModel.getChessboardColorAlternate()));
+                g2d.setColor(ColorUtil.blend(colorModel.getHighlightColor(highlight.getHighlightReason()), colorModel.getChessboardAlternateColor()));
             } else {
                 g2d.setColor(colorModel.getHighlightColor(highlight.getHighlightReason()));
             }
@@ -192,7 +197,7 @@ public class ThreePlayerChessboardRendererImpl extends JPanel implements ThreePl
         g2d.setStroke(new BasicStroke(10));
         for (Highlight highlight : highligtsByType.get(HighlightType.BORDER)) {
             if (ColorUtil.isAlternateColorField(highlight.getHighlightedPosition())) {
-                g2d.setColor(ColorUtil.blend(colorModel.getHighlightColor(highlight.getHighlightReason()), colorModel.getChessboardColorAlternate()));
+                g2d.setColor(ColorUtil.blend(colorModel.getHighlightColor(highlight.getHighlightReason()), colorModel.getChessboardAlternateColor()));
             } else {
                 g2d.setColor(colorModel.getHighlightColor(highlight.getHighlightReason()));
             }
@@ -286,7 +291,7 @@ public class ThreePlayerChessboardRendererImpl extends JPanel implements ThreePl
 
         // figures
         if (chessboardState != null) {
-            for (ChessFigure figure : chessboardState.getFigures()) {
+            for (ChessPiece figure : chessboardState.getFigures()) {
                 BufferedImage img = graphicsRepository.getChessGraphics(figure.getPieceType(), figure.getOwner());
                 Point p = translatePosition(figure.getPosition(), chessBoardPoints, TranslateMode.CHESS_FIELD);
                 g2d.drawImage(img, null, p.x - (img.getWidth() / 2), p.y - (img.getHeight() / 2));
@@ -296,7 +301,7 @@ public class ThreePlayerChessboardRendererImpl extends JPanel implements ThreePl
         // highlight dot
         for (Highlight highlight : highligtsByType.get(HighlightType.DOT)) {
             if (ColorUtil.isAlternateColorField(highlight.getHighlightedPosition())) {
-                g2d.setColor(ColorUtil.transparentize(ColorUtil.blend(colorModel.getHighlightColor(highlight.getHighlightReason()), colorModel.getChessboardColorAlternate())));
+                g2d.setColor(ColorUtil.transparentize(ColorUtil.blend(colorModel.getHighlightColor(highlight.getHighlightReason()), colorModel.getChessboardAlternateColor())));
             } else {
                 g2d.setColor(ColorUtil.transparentize(colorModel.getHighlightColor(highlight.getHighlightReason())));
             }
@@ -620,6 +625,30 @@ public class ThreePlayerChessboardRendererImpl extends JPanel implements ThreePl
 
     private enum TranslateMode {
         CHESS_FIELD, LETTER_LABEL, NUMBER_LABEL;
+    }
+    
+    public UserInputListenerSupport getUserInputListenerSupport(){
+        return userInputListenerSupport;
+    }
+    
+    private class UserInputListenerSupportImpl implements UserInputListenerSupport{
+
+        private final Set<UserInputListener> listeners = new HashSet<>();
+        
+        @Override
+        public void registerListener(UserInputListener listener) {
+            listeners.add(listener);
+        }
+
+        @Override
+        public void unregisterListener(UserInputListener listener) {
+            listeners.remove(listener);
+        }
+        
+        private void notifyListeners(Position position){
+            listeners.forEach((l) -> l.positionSelected(position));
+        }
+        
     }
 
 }
